@@ -1,164 +1,128 @@
-import sqlite3
+import streamlit as st
+from supabase import create_client, Client
 import pandas as pd
-import hashlib
 
-def get_connection():
-    return sqlite3.connect("baza_floty.db", check_same_thread=False)
+# Inicjalizacja połączenia z Supabase
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
-# Helper do szyfrowania haseł
-def make_hashes(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
-
-def check_hashes(password, hashed_text):
-    if make_hashes(password) == hashed_text:
-        return hashed_text
-    return False
+supabase = init_supabase()
 
 def init_db():
-    conn = get_connection()
-    c = conn.cursor()
-    
-    # 1. Tabela Użytkowników
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS uzytkownicy (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            login TEXT UNIQUE,
-            haslo TEXT,
-            rola TEXT
-        )
-    ''')
-    
-    # 2. Tabela Kierowców
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS kierowcy (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            imie_nazwisko TEXT,
-            pesel TEXT,
-            nr_prawo_jazdy TEXT,
-            typ_dokumentu TEXT,
-            nr_dokumentu TEXT,
-            waznosc_dokumentu DATE,
-            waznosc_karty_kierowcy DATE
-        )
-    ''')
-    
-    # 3. Tabela Ciągników
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS ciagniki (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nr_rej TEXT,
-            vin TEXT,
-            przeglad_data DATE,
-            oc_data DATE
-        )
-    ''')
-    
-    # 4. Tabela Naczep
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS naczepy (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nr_rej TEXT,
-            przeglad_data DATE,
-            oc_data DATE
-        )
-    ''')
+    """Tabele tworzymy w panelu Supabase (SQL Editor), ta funkcja dba o inicjalizację."""
+    pass
 
-    # 5. Tabela Inne Pojazdy
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS inne_pojazdy (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            typ_pojazdu TEXT,
-            nr_rej TEXT,
-            vin TEXT,
-            przeglad_data DATE,
-            oc_data DATE
-        )
-    ''')
-    
-    conn.commit()
-
-    # Tworzenie domyślnych kont, jeśli tabela użytkowników jest pusta
-    c.execute("SELECT COUNT(*) FROM uzytkownicy")
-    if c.fetchone()[0] == 0:
-        # Domyślny admin: admin / admin123
-        c.execute("INSERT INTO uzytkownicy (login, haslo, rola) VALUES (?, ?, ?)",
-                  ("admin", make_hashes("admin123"), "admin"))
-        # Domyślny użytkownik odczytu: spedytor / spedytor123
-        c.execute("INSERT INTO uzytkownicy (login, haslo, rola) VALUES (?, ?, ?)",
-                  ("spedytor", make_hashes("spedytor123"), "odczyt"))
-        conn.commit()
-
-    conn.close()
-
-# --- FUNKCJE LOGOWANIA ---
+# --- LOGOWANIE ---
 def zaloguj_uzytkownika(login, haslo):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT rola, haslo FROM uzytkownicy WHERE login = ?", (login,))
-    data = c.fetchone()
-    conn.close()
-    if data:
-        rola, hashed_pw = data[0], data[1]
-        if check_hashes(haslo, hashed_pw):
-            return rola
+    # Domyślne logowanie awaryjne
+    if login == "admin" and haslo == "admin123":
+        return "admin"
+    elif login == "spedytor" and haslo == "spedytor123":
+        return "odczyt"
+    
+    # Lub sprawdzanie w bazie Supabase
+    res = supabase.table("uzytkownicy").select("*").eq("login", login).eq("haslo", haslo).execute()
+    if res.data:
+        return res.data[0]["rola"]
     return None
 
-# --- FUNKCJE DLA KIEROWCÓW ---
+# --- KIEROWCY ---
 def dodaj_kierowce(imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO kierowcy 
-        (imie_nazwisko, pesel, nr_prawo_jazdy, typ_dokumentu, nr_dokumentu, waznosc_dokumentu, waznosc_karty_kierowcy) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty))
-    conn.commit()
-    conn.close()
+    data = {
+        "imie_nazwisko": imie,
+        "pesel": pesel,
+        "nr_prawo_jazdy": nr_pj,
+        "typ_dokumentu": typ_doc,
+        "nr_dokumentu": nr_doc,
+        "waznosc_dokumentu": str(waznosc_doc),
+        "waznosc_karty_kierowcy": str(waznosc_karty)
+    }
+    supabase.table("kierowcy").insert(data).execute()
+
+def edytuj_kierowce(rec_id, imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty):
+    data = {
+        "imie_nazwisko": imie,
+        "pesel": pesel,
+        "nr_prawo_jazdy": nr_pj,
+        "typ_dokumentu": typ_doc,
+        "nr_dokumentu": nr_doc,
+        "waznosc_dokumentu": str(waznosc_doc),
+        "waznosc_karty_kierowcy": str(waznosc_karty)
+    }
+    supabase.table("kierowcy").update(data).eq("id", rec_id).execute()
 
 def pobierz_kierowcow():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM kierowcy", conn)
-    conn.close()
-    return df
+    res = supabase.table("kierowcy").select("*").execute()
+    return pd.DataFrame(res.data)
 
-# --- FUNKCJE DLA CIĄGNIKÓW ---
+# --- CIĄGNIKI ---
 def dodaj_ciagnik(nr_rej, vin, przeglad, oc):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('INSERT INTO ciagniki (nr_rej, vin, przeglad_data, oc_data) VALUES (?, ?, ?, ?)', (nr_rej, vin, przeglad, oc))
-    conn.commit()
-    conn.close()
+    data = {
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("ciagniki").insert(data).execute()
+
+def edytuj_ciagnik(rec_id, nr_rej, vin, przeglad, oc):
+    data = {
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("ciagniki").update(data).eq("id", rec_id).execute()
 
 def pobierz_ciagniki():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM ciagniki", conn)
-    conn.close()
-    return df
+    res = supabase.table("ciagniki").select("*").execute()
+    return pd.DataFrame(res.data)
 
-# --- FUNKCJE DLA NACZEP ---
+# --- NACZEPY ---
 def dodaj_naczepe(nr_rej, przeglad, oc):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('INSERT INTO naczepy (nr_rej, przeglad_data, oc_data) VALUES (?, ?, ?)', (nr_rej, przeglad, oc))
-    conn.commit()
-    conn.close()
+    data = {
+        "nr_rej": nr_rej,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("naczepy").insert(data).execute()
+
+def edytuj_naczepe(rec_id, nr_rej, przeglad, oc):
+    data = {
+        "nr_rej": nr_rej,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("naczepy").update(data).eq("id", rec_id).execute()
 
 def pobierz_naczepy():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM naczepy", conn)
-    conn.close()
-    return df
+    res = supabase.table("naczepy").select("*").execute()
+    return pd.DataFrame(res.data)
 
-# --- FUNKCJE DLA INNYCH POJAZDÓW ---
+# --- INNE POJAZDY ---
 def dodaj_inny_pojazd(typ, nr_rej, vin, przeglad, oc):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('INSERT INTO inne_pojazdy (typ_pojazdu, nr_rej, vin, przeglad_data, oc_data) VALUES (?, ?, ?, ?, ?)', (typ, nr_rej, vin, przeglad, oc))
-    conn.commit()
-    conn.close()
+    data = {
+        "typ_pojazdu": typ,
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("inne_pojazdy").insert(data).execute()
+
+def edytuj_inny_pojazd(rec_id, typ, nr_rej, vin, przeglad, oc):
+    data = {
+        "typ_pojazdu": typ,
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad),
+        "oc_data": str(oc)
+    }
+    supabase.table("inne_pojazdy").update(data).eq("id", rec_id).execute()
 
 def pobierz_inne_pojazdy():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM inne_pojazdy", conn)
-    conn.close()
-    return df
+    res = supabase.table("inne_pojazdy").select("*").execute()
+    return pd.DataFrame(res.data)
