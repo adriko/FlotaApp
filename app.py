@@ -5,19 +5,85 @@ import database as db
 
 st.set_page_config(page_title="Flota i Dokumenty", layout="wide")
 
-# Nawigacja po lewej stronie (Sidebar)
+# Menu boczne
 st.sidebar.title("🚛 Menu Floty")
 menu = st.sidebar.radio(
     "Wybierz sekcję:",
-    ["Ciągniki Siodłowe", "Naczepy", "Pojazdy Inne", "Kierowcy"]
+    ["📊 Pulpit / Alerty", "Ciągniki Siodłowe", "Naczepy", "Pojazdy Inne", "Kierowcy"]
 )
 
 st.title("🚚 System Zarządzania Flotą i Dokumentami")
 
+# Pomocnicza funkcja do sprawdzania terminów
+def sprawdz_terminy(lista_obiektów, typ_pojazdu):
+    alerty = []
+    dzisiaj = datetime.date.today()
+    za_30_dni = dzisiaj + datetime.timedelta(days=30)
+    
+    for obj in lista_obiektów:
+        nazwa_ident = obj.get('nr_rej') or obj.get('nazwa') or f"ID {obj.get('id')}"
+        
+        # Przegląd
+        p_str = obj.get('przeglad_data')
+        if p_str:
+            try:
+                p_dt = datetime.datetime.strptime(str(p_str)[:10], "%Y-%m-%d").date()
+                if p_dt < dzisiaj:
+                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "Przegląd PO TERMINIE!", "Data": p_dt, "Status": "🔴 Przekroczono"})
+                elif dzisiaj <= p_dt <= za_30_dni:
+                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "Przegląd kończy się niedługo", "Data": p_dt, "Status": "🟡 Wkrótce"})
+            except Exception:
+                pass
+
+        # OC
+        oc_str = obj.get('oc_data')
+        if oc_str:
+            try:
+                oc_dt = datetime.datetime.strptime(str(oc_str)[:10], "%Y-%m-%d").date()
+                if oc_dt < dzisiaj:
+                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "OC PO TERMINIE!", "Data": oc_dt, "Status": "🔴 Przekroczono"})
+                elif dzisiaj <= oc_dt <= za_30_dni:
+                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "OC kończy się niedługo", "Data": oc_dt, "Status": "🟡 Wkrótce"})
+            except Exception:
+                pass
+                
+    return alerty
+
+# ==============================================================================
+# 0. PULPIT / ALERTY
+# ==============================================================================
+if menu == "📊 Pulpit / Alerty":
+    st.header("📊 Pulpit - Nadchodzące i Przekroczone Terminy")
+    
+    ciagniki = db.pobierz_ciagniki()
+    naczepy = db.pobierz_naczepy()
+    inne = db.pobierz_inne_pojazdy()
+    
+    wszystkie_alerty = []
+    wszystkie_alerty.extend(sprawdz_terminy(ciagniki, "Ciągnik Siodłowy"))
+    wszystkie_alerty.extend(sprawdz_terminy(naczepy, "Naczepa"))
+    wszystkie_alerty.extend(sprawdz_terminy(inne, "Pojazd Inny"))
+    
+    if wszystkie_alerty:
+        df_alerty = pd.DataFrame(wszystkie_alerty)
+        
+        przekroczone = df_alerty[df_alerty['Status'].str.contains('🔴')]
+        wskrotce = df_alerty[df_alerty['Status'].str.contains('🟡')]
+        
+        if not przekroczone.empty:
+            st.error(f"⚠️ Znaleziono {len(przekroczone)} przeterminowanych opłat / badań!")
+            st.dataframe(przekroczone, use_container_width=True, hide_index=True)
+            
+        if not wskrotce.empty:
+            st.warning(f"🔔 Znaleziono {len(wskrotce)} terminów upływających w ciągu najbliższych 30 dni:")
+            st.dataframe(wskrotce, use_container_width=True, hide_index=True)
+    else:
+        st.success("✅ Wszystkie ubezpieczenia i przeglądy są aktualne!")
+
 # ==============================================================================
 # 1. CIĄGNIKI SIODŁOWE
 # ==============================================================================
-if menu == "Ciągniki Siodłowe":
+elif menu == "Ciągniki Siodłowe":
     st.header("🚛 Ciągniki Siodłowe")
     ciagniki_list = db.pobierz_ciagniki()
     
@@ -48,8 +114,8 @@ if menu == "Ciągniki Siodłowe":
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrany.get('nr_rej', ''))
                     e_vin = st.text_input("Numer VIN", value=wybrany.get('vin', ''))
                     
-                    p_val = datetime.datetime.strptime(wybrany['przeglad_data'], "%Y-%m-%d").date() if wybrany.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(wybrany['oc_data'], "%Y-%m-%d").date() if wybrany.get('oc_data') else datetime.date.today()
+                    p_val = datetime.datetime.strptime(str(wybrany['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrany.get('przeglad_data') else datetime.date.today()
+                    oc_val = datetime.datetime.strptime(str(wybrany['oc_data'])[:10], "%Y-%m-%d").date() if wybrany.get('oc_data') else datetime.date.today()
                     
                     e_przeglad = st.date_input("Termin przeglądu", value=p_val)
                     e_oc = st.date_input("Termin OC", value=oc_val)
@@ -113,8 +179,8 @@ elif menu == "Naczepy":
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrana_n.get('nr_rej', ''))
                     e_vin = st.text_input("Numer VIN", value=wybrana_n.get('vin', ''))
                     
-                    p_val = datetime.datetime.strptime(wybrana_n['przeglad_data'], "%Y-%m-%d").date() if wybrana_n.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(wybrana_n['oc_data'], "%Y-%m-%d").date() if wybrana_n.get('oc_data') else datetime.date.today()
+                    p_val = datetime.datetime.strptime(str(wybrana_n['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrana_n.get('przeglad_data') else datetime.date.today()
+                    oc_val = datetime.datetime.strptime(str(wybrana_n['oc_data'])[:10], "%Y-%m-%d").date() if wybrana_n.get('oc_data') else datetime.date.today()
                     
                     e_przeglad = st.date_input("Termin przeglądu", value=p_val)
                     e_oc = st.date_input("Termin OC", value=oc_val)
@@ -180,8 +246,8 @@ elif menu == "Pojazdy Inne":
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrany_i.get('nr_rej', ''))
                     e_vin = st.text_input("Numer VIN", value=wybrany_i.get('vin', ''))
                     
-                    p_val = datetime.datetime.strptime(wybrany_i['przeglad_data'], "%Y-%m-%d").date() if wybrany_i.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(wybrany_i['oc_data'], "%Y-%m-%d").date() if wybrany_i.get('oc_data') else datetime.date.today()
+                    p_val = datetime.datetime.strptime(str(wybrany_i['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrany_i.get('przeglad_data') else datetime.date.today()
+                    oc_val = datetime.datetime.strptime(str(wybrany_i['oc_data'])[:10], "%Y-%m-%d").date() if wybrany_i.get('oc_data') else datetime.date.today()
                     
                     e_przeglad = st.date_input("Termin przeglądu", value=p_val)
                     e_oc = st.date_input("Termin OC", value=oc_val)
@@ -230,12 +296,12 @@ elif menu == "Kierowcy":
                 prawo_jazdy = st.text_input("Numer prawa jazdy")
                 
                 if st.form_submit_button("Zapisz kierowcę"):
-                    if nazwisko and imie:
+                    if nazwisko or imie:
                         db.dodaj_kierowce(nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy)
                         st.success("Dodano kierowcę!")
                         st.rerun()
                     else:
-                        st.error("Nazwisko i imię są wymagane!")
+                        st.error("Imię lub nazwisko są wymagane!")
 
     with col2:
         if len(kierowcy_list) > 0:
@@ -271,12 +337,9 @@ elif menu == "Kierowcy":
     if len(kierowcy_list) > 0:
         df_k = pd.DataFrame(kierowcy_list)
         
-        kolumny_kierowcy = ['nazwisko', 'imie', 'pesel', 'dowod_osobisty', 'paszport', 'prawo_jazdy']
-        dostepne_kolumny = [col for col in kolumny_kierowcy if col in df_k.columns]
-        df_k = df_k[dostepne_kolumny]
-        
-        if 'nazwisko' in df_k.columns:
-            df_k = df_k.sort_values(by='nazwisko', ascending=True)
+        # Filtrowanie i usuwanie kolumny 'id' jeśli istnieje
+        if 'id' in df_k.columns:
+            df_k = df_k.drop(columns=['id'])
             
         if szukaj_k:
             df_k = df_k[df_k.apply(lambda r: szukaj_k.lower() in str(r.values).lower(), axis=1)]
