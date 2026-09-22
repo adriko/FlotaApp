@@ -216,7 +216,7 @@ elif menu == "Naczepy":
                 
                 with st.form("form_edytuj_naczepe"):
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrana_n.get('nr_rej', ''))
-                    e_vin = st.text_input("Numer VIN", value=wybrany_n.get('vin', ''))
+                    e_vin = st.text_input("Numer VIN", value=wybrana_n.get('vin', ''))
                     
                     p_val = parsuj_date(wybrana_n.get('przeglad_data')) or datetime.date.today()
                     oc_val = parsuj_date(wybrana_n.get('oc_data')) or datetime.date.today()
