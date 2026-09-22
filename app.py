@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import database as db
 
-st.set_page_config(page_title="Flota i Dokumenty", layout="wide")
+st.set_page_config(page_title="B&B TRANS - Flota", layout="wide")
 
 # Nawigacja w lewym panelu bocznym
 st.sidebar.title("🚛 Menu floty")
@@ -12,7 +12,7 @@ menu = st.sidebar.radio(
     ["📊 Pulpit / Alerty", "Ciągniki siodłowe", "Naczepy", "Pojazdy inne", "Kierowcy"]
 )
 
-st.title("🚚 System zarządzania flotą i dokumentami")
+st.title("🚚 B&B TRANS Sp. z o.o. - System zarządzania flotą")
 
 # Pomocnicza funkcja do bezpiecznego parsowania dat
 def parsuj_date(data_str):
