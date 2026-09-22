@@ -168,14 +168,15 @@ def pobierz_kierowcow():
         print("Błąd pobierania kierowców:", e)
         return []
 
-def dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
+def dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy, zezwolenie_data=None):
     data = {
         "nazwisko": nazwisko if nazwisko else None,
         "imie": imie if imie else None,
         "pesel": pesel if pesel else None,
         "paszport": paszport if paszport else None,
         "dowod_osobisty": dowod_osobisty if dowod_osobisty else None,
-        "prawo_jazdy": prawo_jazdy if prawo_jazdy else None
+        "prawo_jazdy": prawo_jazdy if prawo_jazdy else None,
+        "zezwolenie_data": str(zezwolenie_data) if zezwolenie_data else None
     }
     try:
         supabase.table("kierowcy").insert(data).execute()
@@ -183,14 +184,15 @@ def dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy)
     except Exception as e:
         return False, str(e)
 
-def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
+def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy, zezwolenie_data=None):
     data = {
         "nazwisko": nazwisko if nazwisko else None,
         "imie": imie if imie else None,
         "pesel": pesel if pesel else None,
         "paszport": paszport if paszport else None,
         "dowod_osobisty": dowod_osobisty if dowod_osobisty else None,
-        "prawo_jazdy": prawo_jazdy if prawo_jazdy else None
+        "prawo_jazdy": prawo_jazdy if prawo_jazdy else None,
+        "zezwolenie_data": str(zezwolenie_data) if zezwolenie_data else None
     }
     try:
         supabase.table("kierowcy").update(data).eq("id", id_kierowcy).execute()
