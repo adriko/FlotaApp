@@ -21,7 +21,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ==================== CIĄGNIKI ====================
 def pobierz_ciagniki():
     res = supabase.table("ciagniki").select("*").order("nr_rej").execute()
-    return res.data
+    return res.data if res.data is not None else []
 
 def dodaj_ciagnik(nr_rej, vin, przeglad_data, oc_data):
     data = {
@@ -46,9 +46,8 @@ def usun_ciagnik(id_ciagnika):
 
 # ==================== KIEROWCY ====================
 def pobierz_kierowcow():
-    # Sortowanie domyślne od A do Z według nazwiska
     res = supabase.table("kierowcy").select("*").order("nazwisko", desc=False).execute()
-    return res.data
+    return res.data if res.data is not None else []
 
 def dodaj_kierowce(nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
     data = {
@@ -78,7 +77,7 @@ def usun_kierowce(id_kierowcy):
 # ==================== NACZEPY ====================
 def pobierz_naczepy():
     res = supabase.table("naczepy").select("*").order("nr_rej").execute()
-    return res.data
+    return res.data if res.data is not None else []
 
 def dodaj_naczepe(nr_rej, vin, przeglad_data, oc_data):
     data = {
@@ -104,7 +103,7 @@ def usun_naczepe(id_naczepy):
 # ==================== INNE POJAZDY ====================
 def pobierz_inne_pojazdy():
     res = supabase.table("inne_pojazdy").select("*").order("nazwa").execute()
-    return res.data
+    return res.data if res.data is not None else []
 
 def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
     data = {

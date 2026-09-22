@@ -15,6 +15,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["Ciągniki Siodłowe", "Naczepy", "Pojazdy Inn
 # ==============================================================================
 with tab1:
     st.header("Ciągniki Siodłowe")
+    ciagniki_list = db.pobierz_ciagniki()
     
     col1, col2 = st.columns(2)
     with col1:
@@ -33,8 +34,7 @@ with tab1:
                         st.error("Numer rejestracyjny jest wymagany!")
 
     with col2:
-        ciagniki_list = db.pobierz_ciagniki()
-        if ciagniki_list:
+        if len(ciagniki_list) > 0:
             with st.expander("✏️ Edytuj / Usuń ciągnik"):
                 options = {f"{c['nr_rej']} (VIN: {c.get('vin', '')})": c for c in ciagniki_list}
                 wybrany_label = st.selectbox("Wybierz ciągnik do edycji", list(options.keys()))
@@ -64,7 +64,7 @@ with tab1:
 
     st.subheader("Lista Ciągników")
     szukaj_c = st.text_input("🔍 Szukaj ciągnika (nr rej, VIN):", key="search_c")
-    if ciagniki_list:
+    if len(ciagniki_list) > 0:
         df_c = pd.DataFrame(ciagniki_list)
         if szukaj_c:
             df_c = df_c[df_c.apply(lambda r: szukaj_c.lower() in str(r.values).lower(), axis=1)]
@@ -80,6 +80,8 @@ with tab1:
 # ==============================================================================
 with tab2:
     st.header("Naczepy")
+    naczepy_list = db.pobierz_naczepy()
+    
     col1, col2 = st.columns(2)
     with col1:
         with st.expander("➕ Dodaj naczepę"):
@@ -97,8 +99,7 @@ with tab2:
                         st.error("Numer rejestracyjny jest wymagany!")
 
     with col2:
-        naczepy_list = db.pobierz_naczepy()
-        if naczepy_list:
+        if len(naczepy_list) > 0:
             with st.expander("✏️ Edytuj / Usuń naczepę"):
                 options_n = {f"{n['nr_rej']} (VIN: {n.get('vin', '')})": n for n in naczepy_list}
                 wybrany_label_n = st.selectbox("Wybierz naczepę do edycji", list(options_n.keys()))
@@ -128,7 +129,7 @@ with tab2:
 
     st.subheader("Lista Naczep")
     szukaj_n = st.text_input("🔍 Szukaj naczepy (nr rej, VIN):", key="search_n")
-    if naczepy_list:
+    if len(naczepy_list) > 0:
         df_n = pd.DataFrame(naczepy_list)
         if szukaj_n:
             df_n = df_n[df_n.apply(lambda r: szukaj_n.lower() in str(r.values).lower(), axis=1)]
@@ -144,6 +145,8 @@ with tab2:
 # ==============================================================================
 with tab3:
     st.header("Pojazdy Inne")
+    inne_list = db.pobierz_inne_pojazdy()
+    
     col1, col2 = st.columns(2)
     with col1:
         with st.expander("➕ Dodaj inny pojazd"):
@@ -162,8 +165,7 @@ with tab3:
                         st.error("Nazwa lub numer rejestracyjny są wymagane!")
 
     with col2:
-        inne_list = db.pobierz_inne_pojazdy()
-        if inne_list:
+        if len(inne_list) > 0:
             with st.expander("✏️ Edytuj / Usuń pojazd"):
                 options_i = {f"{i.get('nazwa', 'Pojazd')} - {i.get('nr_rej', '')}": i for i in inne_list}
                 wybrany_label_i = st.selectbox("Wybierz pojazd do edycji", list(options_i.keys()))
@@ -194,7 +196,7 @@ with tab3:
 
     st.subheader("Lista Innych Pojazdów")
     szukaj_i = st.text_input("🔍 Szukaj pojazdu:", key="search_i")
-    if inne_list:
+    if len(inne_list) > 0:
         df_i = pd.DataFrame(inne_list)
         if szukaj_i:
             df_i = df_i[df_i.apply(lambda r: szukaj_i.lower() in str(r.values).lower(), axis=1)]
@@ -210,6 +212,8 @@ with tab3:
 # ==============================================================================
 with tab4:
     st.header("Kierowcy")
+    kierowcy_list = db.pobierz_kierowcow()
+    
     col1, col2 = st.columns(2)
     with col1:
         with st.expander("➕ Dodaj kierowcę"):
@@ -230,8 +234,7 @@ with tab4:
                         st.error("Nazwisko i imię są wymagane!")
 
     with col2:
-        kierowcy_list = db.pobierz_kierowcow()
-        if kierowcy_list:
+        if len(kierowcy_list) > 0:
             with st.expander("✏️ Edytuj / Usuń kierowcę"):
                 options_k = {f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k for k in kierowcy_list}
                 wybrany_label_k = st.selectbox("Wybierz kierowcę do edycji", list(options_k.keys()))
@@ -261,7 +264,7 @@ with tab4:
 
     st.subheader("Lista Kierowców")
     szukaj_k = st.text_input("🔍 Szukaj kierowcy (nazwisko, imię, PESEL):", key="search_k")
-    if kierowcy_list:
+    if len(kierowcy_list) > 0:
         df_k = pd.DataFrame(kierowcy_list)
         
         # Uporządkowanie kolejności kolumn (Nazwisko na początku, bez id)
