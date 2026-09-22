@@ -5,16 +5,20 @@ import database as db
 
 st.set_page_config(page_title="Flota i Dokumenty", layout="wide")
 
+# Nawigacja po lewej stronie (Sidebar)
+st.sidebar.title("🚛 Menu Floty")
+menu = st.sidebar.radio(
+    "Wybierz sekcję:",
+    ["Ciągniki Siodłowe", "Naczepy", "Pojazdy Inne", "Kierowcy"]
+)
+
 st.title("🚚 System Zarządzania Flotą i Dokumentami")
 
-# Zakładki w aplikacji
-tab1, tab2, tab3, tab4 = st.tabs(["Ciągniki Siodłowe", "Naczepy", "Pojazdy Inne", "Kierowcy"])
-
 # ==============================================================================
-# TAB 1: CIĄGNIKI SIODŁOWE
+# 1. CIĄGNIKI SIODŁOWE
 # ==============================================================================
-with tab1:
-    st.header("Ciągniki Siodłowe")
+if menu == "Ciągniki Siodłowe":
+    st.header("🚛 Ciągniki Siodłowe")
     ciagniki_list = db.pobierz_ciagniki()
     
     col1, col2 = st.columns(2)
@@ -36,7 +40,7 @@ with tab1:
     with col2:
         if len(ciagniki_list) > 0:
             with st.expander("✏️ Edytuj / Usuń ciągnik"):
-                options = {f"{c['nr_rej']} (VIN: {c.get('vin', '')})": c for c in ciagniki_list}
+                options = {f"{c.get('nr_rej', '')} (VIN: {c.get('vin', '')})": c for c in ciagniki_list}
                 wybrany_label = st.selectbox("Wybierz ciągnik do edycji", list(options.keys()))
                 wybrany = options[wybrany_label]
                 
@@ -76,10 +80,10 @@ with tab1:
         st.info("Brak ciągników w bazie.")
 
 # ==============================================================================
-# TAB 2: NACZEPY
+# 2. NACZEPY
 # ==============================================================================
-with tab2:
-    st.header("Naczepy")
+elif menu == "Naczepy":
+    st.header("🚚 Naczepy")
     naczepy_list = db.pobierz_naczepy()
     
     col1, col2 = st.columns(2)
@@ -101,7 +105,7 @@ with tab2:
     with col2:
         if len(naczepy_list) > 0:
             with st.expander("✏️ Edytuj / Usuń naczepę"):
-                options_n = {f"{n['nr_rej']} (VIN: {n.get('vin', '')})": n for n in naczepy_list}
+                options_n = {f"{n.get('nr_rej', '')} (VIN: {n.get('vin', '')})": n for n in naczepy_list}
                 wybrany_label_n = st.selectbox("Wybierz naczepę do edycji", list(options_n.keys()))
                 wybrana_n = options_n[wybrany_label_n]
                 
@@ -141,10 +145,10 @@ with tab2:
         st.info("Brak naczep w bazie.")
 
 # ==============================================================================
-# TAB 3: POJAZDY INNE
+# 3. POJAZDY INNE
 # ==============================================================================
-with tab3:
-    st.header("Pojazdy Inne")
+elif menu == "Pojazdy Inne":
+    st.header("🚗 Pojazdy Inne")
     inne_list = db.pobierz_inne_pojazdy()
     
     col1, col2 = st.columns(2)
@@ -208,10 +212,10 @@ with tab3:
         st.info("Brak pojazdów w bazie.")
 
 # ==============================================================================
-# TAB 4: KIEROWCY
+# 4. KIEROWCY
 # ==============================================================================
-with tab4:
-    st.header("Kierowcy")
+elif menu == "Kierowcy":
+    st.header("👨‍✈️ Kierowcy")
     kierowcy_list = db.pobierz_kierowcow()
     
     col1, col2 = st.columns(2)
@@ -267,12 +271,10 @@ with tab4:
     if len(kierowcy_list) > 0:
         df_k = pd.DataFrame(kierowcy_list)
         
-        # Uporządkowanie kolejności kolumn (Nazwisko na początku, bez id)
         kolumny_kierowcy = ['nazwisko', 'imie', 'pesel', 'dowod_osobisty', 'paszport', 'prawo_jazdy']
         dostepne_kolumny = [col for col in kolumny_kierowcy if col in df_k.columns]
         df_k = df_k[dostepne_kolumny]
         
-        # Sortowanie od A do Z po nazwisku
         if 'nazwisko' in df_k.columns:
             df_k = df_k.sort_values(by='nazwisko', ascending=True)
             

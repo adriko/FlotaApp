@@ -1,7 +1,6 @@
 import os
 from supabase import create_client, Client
 
-# Pobieranie danych logowania do Supabase z sekretów Streamlit / zmiennych środowiskowych
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -14,14 +13,18 @@ if not SUPABASE_URL or not SUPABASE_KEY:
         pass
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Brak konfiguracji SUPABASE_URL lub SUPABASE_KEY w secrets/env!")
+    raise ValueError("Brak konfiguracji SUPABASE_URL lub SUPABASE_KEY!")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ==================== CIĄGNIKI ====================
 def pobierz_ciagniki():
-    res = supabase.table("ciagniki").select("*").order("nr_rej").execute()
-    return res.data if res.data is not None else []
+    try:
+        res = supabase.table("ciagniki").select("*").order("nr_rej").execute()
+        return res.data if res.data is not None else []
+    except Exception as e:
+        print("Błąd pobierania ciągników:", e)
+        return []
 
 def dodaj_ciagnik(nr_rej, vin, przeglad_data, oc_data):
     data = {
@@ -44,10 +47,90 @@ def edytuj_ciagnik(id_ciagnika, nr_rej, vin, przeglad_data, oc_data):
 def usun_ciagnik(id_ciagnika):
     supabase.table("ciagniki").delete().eq("id", id_ciagnika).execute()
 
+# ==================== NACZEPY ====================
+def pobierz_naczepy():
+    try:
+        res = supabase.table("naczepy").select("*").order("nr_rej").execute()
+        return res.data if res.data is not None else []
+    except Exception as e:
+        print("Błąd pobierania naczep:", e)
+        return []
+
+def dodaj_naczepe(nr_rej, vin, przeglad_data, oc_data):
+    data = {
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
+    }
+    supabase.table("naczepy").insert(data).execute()
+
+def edytuj_naczepe(id_naczepy, nr_rej, vin, przeglad_data, oc_data):
+    data = {
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
+    }
+    supabase.table("naczepy").update(data).eq("id", id_naczepy).execute()
+
+def usun_naczepe(id_naczepy):
+    supabase.table("naczepy").delete().eq("id", id_naczepy).execute()
+
+# ==================== POJAZDY INNE ====================
+def pobierz_inne_pojazdy():
+    try:
+        # Próba pobrania tabeli 'inne_pojazdy' lub 'pojazdy_inne'
+        res = supabase.table("inne_pojazdy").select("*").execute()
+        return res.data if res.data is not None else []
+    except Exception as e:
+        try:
+            res = supabase.table("pojazdy_inne").select("*").execute()
+            return res.data if res.data is not None else []
+        except Exception:
+            print("Błąd pobierania innych pojazdów:", e)
+            return []
+
+def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
+    data = {
+        "nazwa": nazwa,
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
+    }
+    try:
+        supabase.table("inne_pojazdy").insert(data).execute()
+    except Exception:
+        supabase.table("pojazdy_inne").insert(data).execute()
+
+def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
+    data = {
+        "nazwa": nazwa,
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
+    }
+    try:
+        supabase.table("inne_pojazdy").update(data).eq("id", id_pojazdu).execute()
+    except Exception:
+        supabase.table("pojazdy_inne").update(data).eq("id", id_pojazdu).execute()
+
+def usun_inny_pojazd(id_pojazdu):
+    try:
+        supabase.table("inne_pojazdy").delete().eq("id", id_pojazdu).execute()
+    except Exception:
+        supabase.table("pojazdy_inne").delete().eq("id", id_pojazdu).execute()
+
 # ==================== KIEROWCY ====================
 def pobierz_kierowcow():
-    res = supabase.table("kierowcy").select("*").order("nazwisko", desc=False).execute()
-    return res.data if res.data is not None else []
+    try:
+        res = supabase.table("kierowcy").select("*").execute()
+        return res.data if res.data is not None else []
+    except Exception as e:
+        print("Błąd pobierania kierowców:", e)
+        return []
 
 def dodaj_kierowce(nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
     data = {
@@ -73,57 +156,3 @@ def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, dowod_osobisty, paszport
 
 def usun_kierowce(id_kierowcy):
     supabase.table("kierowcy").delete().eq("id", id_kierowcy).execute()
-
-# ==================== NACZEPY ====================
-def pobierz_naczepy():
-    res = supabase.table("naczepy").select("*").order("nr_rej").execute()
-    return res.data if res.data is not None else []
-
-def dodaj_naczepe(nr_rej, vin, przeglad_data, oc_data):
-    data = {
-        "nr_rej": nr_rej,
-        "vin": vin,
-        "przeglad_data": str(przeglad_data) if przeglad_data else None,
-        "oc_data": str(oc_data) if oc_data else None
-    }
-    supabase.table("naczepy").insert(data).execute()
-
-def edytuj_naczepe(id_naczepy, nr_rej, vin, przeglad_data, oc_data):
-    data = {
-        "nr_rej": nr_rej,
-        "vin": vin,
-        "przeglad_data": str(przeglad_data) if przeglad_data else None,
-        "oc_data": str(oc_data) if oc_data else None
-    }
-    supabase.table("naczepy").update(data).eq("id", id_naczepy).execute()
-
-def usun_naczepe(id_naczepy):
-    supabase.table("naczepy").delete().eq("id", id_naczepy).execute()
-
-# ==================== INNE POJAZDY ====================
-def pobierz_inne_pojazdy():
-    res = supabase.table("inne_pojazdy").select("*").order("nazwa").execute()
-    return res.data if res.data is not None else []
-
-def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
-    data = {
-        "nazwa": nazwa,
-        "nr_rej": nr_rej,
-        "vin": vin,
-        "przeglad_data": str(przeglad_data) if przeglad_data else None,
-        "oc_data": str(oc_data) if oc_data else None
-    }
-    supabase.table("inne_pojazdy").insert(data).execute()
-
-def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
-    data = {
-        "nazwa": nazwa,
-        "nr_rej": nr_rej,
-        "vin": vin,
-        "przeglad_data": str(przeglad_data) if przeglad_data else None,
-        "oc_data": str(oc_data) if oc_data else None
-    }
-    supabase.table("inne_pojazdy").update(data).eq("id", id_pojazdu).execute()
-
-def usun_inny_pojazd(id_pojazdu):
-    supabase.table("inne_pojazdy").delete().eq("id", id_pojazdu).execute()
