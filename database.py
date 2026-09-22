@@ -1,128 +1,130 @@
-import streamlit as st
+import os
 from supabase import create_client, Client
-import pandas as pd
 
-# Inicjalizacja połączenia z Supabase
-@st.cache_resource
-def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+# Pobieranie danych logowania do Supabase z sekretów Streamlit / zmiennych środowiskowych
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-supabase = init_supabase()
+if not SUPABASE_URL or not SUPABASE_KEY:
+    try:
+        import streamlit as st
+        SUPABASE_URL = st.secrets["SUPABASE_URL"]
+        SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    except Exception:
+        pass
 
-def init_db():
-    """Tabele tworzymy w panelu Supabase (SQL Editor), ta funkcja dba o inicjalizację."""
-    pass
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Brak konfiguracji SUPABASE_URL lub SUPABASE_KEY w secrets/env!")
 
-# --- LOGOWANIE ---
-def zaloguj_uzytkownika(login, haslo):
-    # Domyślne logowanie awaryjne
-    if login == "admin" and haslo == "admin123":
-        return "admin"
-    elif login == "spedytor" and haslo == "spedytor123":
-        return "odczyt"
-    
-    # Lub sprawdzanie w bazie Supabase
-    res = supabase.table("uzytkownicy").select("*").eq("login", login).eq("haslo", haslo).execute()
-    if res.data:
-        return res.data[0]["rola"]
-    return None
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- KIEROWCY ---
-def dodaj_kierowce(imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty):
-    data = {
-        "imie_nazwisko": imie,
-        "pesel": pesel,
-        "nr_prawo_jazdy": nr_pj,
-        "typ_dokumentu": typ_doc,
-        "nr_dokumentu": nr_doc,
-        "waznosc_dokumentu": str(waznosc_doc),
-        "waznosc_karty_kierowcy": str(waznosc_karty)
-    }
-    supabase.table("kierowcy").insert(data).execute()
+# ==================== CIĄGNIKI ====================
+def pobierz_ciagniki():
+    res = supabase.table("ciagniki").select("*").order("nr_rej").execute()
+    return res.data
 
-def edytuj_kierowce(rec_id, imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty):
-    data = {
-        "imie_nazwisko": imie,
-        "pesel": pesel,
-        "nr_prawo_jazdy": nr_pj,
-        "typ_dokumentu": typ_doc,
-        "nr_dokumentu": nr_doc,
-        "waznosc_dokumentu": str(waznosc_doc),
-        "waznosc_karty_kierowcy": str(waznosc_karty)
-    }
-    supabase.table("kierowcy").update(data).eq("id", rec_id).execute()
-
-def pobierz_kierowcow():
-    res = supabase.table("kierowcy").select("*").execute()
-    return pd.DataFrame(res.data)
-
-# --- CIĄGNIKI ---
-def dodaj_ciagnik(nr_rej, vin, przeglad, oc):
+def dodaj_ciagnik(nr_rej, vin, przeglad_data, oc_data):
     data = {
         "nr_rej": nr_rej,
         "vin": vin,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
     }
     supabase.table("ciagniki").insert(data).execute()
 
-def edytuj_ciagnik(rec_id, nr_rej, vin, przeglad, oc):
+def edytuj_ciagnik(id_ciagnika, nr_rej, vin, przeglad_data, oc_data):
     data = {
         "nr_rej": nr_rej,
         "vin": vin,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
     }
-    supabase.table("ciagniki").update(data).eq("id", rec_id).execute()
+    supabase.table("ciagniki").update(data).eq("id", id_ciagnika).execute()
 
-def pobierz_ciagniki():
-    res = supabase.table("ciagniki").select("*").execute()
-    return pd.DataFrame(res.data)
+def usun_ciagnik(id_ciagnika):
+    supabase.table("ciagniki").delete().eq("id", id_ciagnika).execute()
 
-# --- NACZEPY ---
-def dodaj_naczepe(nr_rej, przeglad, oc):
+# ==================== KIEROWCY ====================
+def pobierz_kierowcow():
+    # Sortowanie domyślne od A do Z według nazwiska
+    res = supabase.table("kierowcy").select("*").order("nazwisko", desc=False).execute()
+    return res.data
+
+def dodaj_kierowce(nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
+    data = {
+        "nazwisko": nazwisko,
+        "imie": imie,
+        "pesel": pesel,
+        "dowod_osobisty": dowod_osobisty,
+        "paszport": paszport,
+        "prawo_jazdy": prawo_jazdy
+    }
+    supabase.table("kierowcy").insert(data).execute()
+
+def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
+    data = {
+        "nazwisko": nazwisko,
+        "imie": imie,
+        "pesel": pesel,
+        "dowod_osobisty": dowod_osobisty,
+        "paszport": paszport,
+        "prawo_jazdy": prawo_jazdy
+    }
+    supabase.table("kierowcy").update(data).eq("id", id_kierowcy).execute()
+
+def usun_kierowce(id_kierowcy):
+    supabase.table("kierowcy").delete().eq("id", id_kierowcy).execute()
+
+# ==================== NACZEPY ====================
+def pobierz_naczepy():
+    res = supabase.table("naczepy").select("*").order("nr_rej").execute()
+    return res.data
+
+def dodaj_naczepe(nr_rej, vin, przeglad_data, oc_data):
     data = {
         "nr_rej": nr_rej,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
     }
     supabase.table("naczepy").insert(data).execute()
 
-def edytuj_naczepe(rec_id, nr_rej, przeglad, oc):
+def edytuj_naczepe(id_naczepy, nr_rej, vin, przeglad_data, oc_data):
     data = {
-        "nr_rej": nr_rej,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
-    }
-    supabase.table("naczepy").update(data).eq("id", rec_id).execute()
-
-def pobierz_naczepy():
-    res = supabase.table("naczepy").select("*").execute()
-    return pd.DataFrame(res.data)
-
-# --- INNE POJAZDY ---
-def dodaj_inny_pojazd(typ, nr_rej, vin, przeglad, oc):
-    data = {
-        "typ_pojazdu": typ,
         "nr_rej": nr_rej,
         "vin": vin,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
+    }
+    supabase.table("naczepy").update(data).eq("id", id_naczepy).execute()
+
+def usun_naczepe(id_naczepy):
+    supabase.table("naczepy").delete().eq("id", id_naczepy).execute()
+
+# ==================== INNE POJAZDY ====================
+def pobierz_inne_pojazdy():
+    res = supabase.table("inne_pojazdy").select("*").order("nazwa").execute()
+    return res.data
+
+def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
+    data = {
+        "nazwa": nazwa,
+        "nr_rej": nr_rej,
+        "vin": vin,
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
     }
     supabase.table("inne_pojazdy").insert(data).execute()
 
-def edytuj_inny_pojazd(rec_id, typ, nr_rej, vin, przeglad, oc):
+def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
     data = {
-        "typ_pojazdu": typ,
+        "nazwa": nazwa,
         "nr_rej": nr_rej,
         "vin": vin,
-        "przeglad_data": str(przeglad),
-        "oc_data": str(oc)
+        "przeglad_data": str(przeglad_data) if przeglad_data else None,
+        "oc_data": str(oc_data) if oc_data else None
     }
-    supabase.table("inne_pojazdy").update(data).eq("id", rec_id).execute()
+    supabase.table("inne_pojazdy").update(data).eq("id", id_pojazdu).execute()
 
-def pobierz_inne_pojazdy():
-    res = supabase.table("inne_pojazdy").select("*").execute()
-    return pd.DataFrame(res.data)
+def usun_inny_pojazd(id_pojazdu):
+    supabase.table("inne_pojazdy").delete().eq("id", id_pojazdu).execute()
