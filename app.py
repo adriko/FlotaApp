@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
+import importlib
 import database as db
+
+# Wymuszenie przeładowania modułu bazy danych (zapobiega błędom pamięci podręcznej w chmurze)
+importlib.reload(db)
 
 db.init_db()
 
