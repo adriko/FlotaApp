@@ -1,360 +1,101 @@
 import streamlit as st
-import pandas as pd
-import datetime
 import database as db
 
-st.set_page_config(page_title="Flota i Dokumenty", layout="wide")
+st.set_page_config(page_title="Zarządzanie Flotą", layout="wide")
 
-# Menu boczne
-st.sidebar.title("🚛 Menu Floty")
-menu = st.sidebar.radio(
-    "Wybierz sekcję:",
-    ["📊 Pulpit / Alerty", "Ciągniki Siodłowe", "Naczepy", "Pojazdy Inne", "Kierowcy"]
-)
+st.title("🚛 System Zarządzania Flotą")
 
-st.title("🚚 System Zarządzania Flotą i Dokumentami")
+tab_kierowcy, tab_pojazdy = st.tabs(["👨‍✈️ Kierowcy", "🚚 Pojazdy"])
 
-# Pomocnicza funkcja do sprawdzania terminów
-def sprawdz_terminy(lista_obiektów, typ_pojazdu):
-    alerty = []
-    dzisiaj = datetime.date.today()
-    za_30_dni = dzisiaj + datetime.timedelta(days=30)
-    
-    for obj in lista_obiektów:
-        nazwa_ident = obj.get('nr_rej') or obj.get('nazwa') or f"ID {obj.get('id')}"
-        
-        # Przegląd
-        p_str = obj.get('przeglad_data')
-        if p_str:
-            try:
-                p_dt = datetime.datetime.strptime(str(p_str)[:10], "%Y-%m-%d").date()
-                if p_dt < dzisiaj:
-                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "Przegląd PO TERMINIE!", "Data": p_dt, "Status": "🔴 Przekroczono"})
-                elif dzisiaj <= p_dt <= za_30_dni:
-                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "Przegląd kończy się niedługo", "Data": p_dt, "Status": "🟡 Wkrótce"})
-            except Exception:
-                pass
+# =========================================================
+# TAB: KIEROWCY
+# =========================================================
+with tab_kierowcy:
+    st.header("Zarządzanie Kierowcami")
 
-        # OC
-        oc_str = obj.get('oc_data')
-        if oc_str:
-            try:
-                oc_dt = datetime.datetime.strptime(str(oc_str)[:10], "%Y-%m-%d").date()
-                if oc_dt < dzisiaj:
-                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "OC PO TERMINIE!", "Data": oc_dt, "Status": "🔴 Przekroczono"})
-                elif dzisiaj <= oc_dt <= za_30_dni:
-                    alerty.append({"Typ": typ_pojazdu, "Pojazd/Kierowca": nazwa_ident, "Zdazenie": "OC kończy się niedługo", "Data": oc_dt, "Status": "🟡 Wkrótce"})
-            except Exception:
-                pass
-                
-    return alerty
-
-# ==============================================================================
-# 0. PULPIT / ALERTY
-# ==============================================================================
-if menu == "📊 Pulpit / Alerty":
-    st.header("📊 Pulpit - Nadchodzące i Przekroczone Terminy")
-    
-    ciagniki = db.pobierz_ciagniki()
-    naczepy = db.pobierz_naczepy()
-    inne = db.pobierz_inne_pojazdy()
-    
-    wszystkie_alerty = []
-    wszystkie_alerty.extend(sprawdz_terminy(ciagniki, "Ciągnik Siodłowy"))
-    wszystkie_alerty.extend(sprawdz_terminy(naczepy, "Naczepa"))
-    wszystkie_alerty.extend(sprawdz_terminy(inne, "Pojazd Inny"))
-    
-    if wszystkie_alerty:
-        df_alerty = pd.DataFrame(wszystkie_alerty)
-        
-        przekroczone = df_alerty[df_alerty['Status'].str.contains('🔴')]
-        wskrotce = df_alerty[df_alerty['Status'].str.contains('🟡')]
-        
-        if not przekroczone.empty:
-            st.error(f"⚠️ Znaleziono {len(przekroczone)} przeterminowanych opłat / badań!")
-            st.dataframe(przekroczone, use_container_width=True, hide_index=True)
-            
-        if not wskrotce.empty:
-            st.warning(f"🔔 Znaleziono {len(wskrotce)} terminów upływających w ciągu najbliższych 30 dni:")
-            st.dataframe(wskrotce, use_container_width=True, hide_index=True)
-    else:
-        st.success("✅ Wszystkie ubezpieczenia i przeglądy są aktualne!")
-
-# ==============================================================================
-# 1. CIĄGNIKI SIODŁOWE
-# ==============================================================================
-elif menu == "Ciągniki Siodłowe":
-    st.header("🚛 Ciągniki Siodłowe")
-    ciagniki_list = db.pobierz_ciagniki()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("➕ Dodaj ciągnik"):
-            with st.form("form_dodaj_ciagnik", clear_on_submit=True):
-                nr_rej = st.text_input("Numer rejestracyjny")
-                vin = st.text_input("Numer VIN")
-                przeglad = st.date_input("Termin przeglądu technicznego", value=datetime.date.today())
-                oc = st.date_input("Termin ubezpieczenia OC", value=datetime.date.today())
-                if st.form_submit_button("Zapisz ciągnik"):
-                    if nr_rej:
-                        db.dodaj_ciagnik(nr_rej, vin, przeglad, oc)
-                        st.success("Dodano ciągnik!")
-                        st.rerun()
-                    else:
-                        st.error("Numer rejestracyjny jest wymagany!")
-
-    with col2:
-        if len(ciagniki_list) > 0:
-            with st.expander("✏️ Edytuj / Usuń ciągnik"):
-                options = {f"{c.get('nr_rej', '')} (VIN: {c.get('vin', '')})": c for c in ciagniki_list}
-                wybrany_label = st.selectbox("Wybierz ciągnik do edycji", list(options.keys()))
-                wybrany = options[wybrany_label]
-                
-                with st.form("form_edytuj_ciagnik"):
-                    e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrany.get('nr_rej', ''))
-                    e_vin = st.text_input("Numer VIN", value=wybrany.get('vin', ''))
-                    
-                    p_val = datetime.datetime.strptime(str(wybrany['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrany.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(str(wybrany['oc_data'])[:10], "%Y-%m-%d").date() if wybrany.get('oc_data') else datetime.date.today()
-                    
-                    e_przeglad = st.date_input("Termin przeglądu", value=p_val)
-                    e_oc = st.date_input("Termin OC", value=oc_val)
-                    
-                    col_btn1, col_btn2 = st.columns(2)
-                    with col_btn1:
-                        if st.form_submit_button("Zapisz zmiany"):
-                            db.edytuj_ciagnik(wybrany['id'], e_nr_rej, e_vin, e_przeglad, e_oc)
-                            st.success("Zaktualizowano!")
-                            st.rerun()
-                    with col_btn2:
-                        if st.form_submit_button("🗑️ Usuń ciągnik"):
-                            db.usun_ciagnik(wybrany['id'])
-                            st.warning("Usunięto ciągnik!")
-                            st.rerun()
-
-    st.subheader("Lista Ciągników")
-    szukaj_c = st.text_input("🔍 Szukaj ciągnika (nr rej, VIN):", key="search_c")
-    if len(ciagniki_list) > 0:
-        df_c = pd.DataFrame(ciagniki_list)
-        if szukaj_c:
-            df_c = df_c[df_c.apply(lambda r: szukaj_c.lower() in str(r.values).lower(), axis=1)]
-        if not df_c.empty and 'id' in df_c.columns:
-            st.dataframe(df_c.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_c, use_container_width=True, hide_index=True)
-    else:
-        st.info("Brak ciągników w bazie.")
-
-# ==============================================================================
-# 2. NACZEPY
-# ==============================================================================
-elif menu == "Naczepy":
-    st.header("🚚 Naczepy")
-    naczepy_list = db.pobierz_naczepy()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("➕ Dodaj naczepę"):
-            with st.form("form_dodaj_naczepe", clear_on_submit=True):
-                nr_rej = st.text_input("Numer rejestracyjny")
-                vin = st.text_input("Numer VIN")
-                przeglad = st.date_input("Termin przeglądu technicznego", value=datetime.date.today())
-                oc = st.date_input("Termin ubezpieczenia OC", value=datetime.date.today())
-                if st.form_submit_button("Zapisz naczepę"):
-                    if nr_rej:
-                        db.dodaj_naczepe(nr_rej, vin, przeglad, oc)
-                        st.success("Dodano naczepę!")
-                        st.rerun()
-                    else:
-                        st.error("Numer rejestracyjny jest wymagany!")
-
-    with col2:
-        if len(naczepy_list) > 0:
-            with st.expander("✏️ Edytuj / Usuń naczepę"):
-                options_n = {f"{n.get('nr_rej', '')} (VIN: {n.get('vin', '')})": n for n in naczepy_list}
-                wybrany_label_n = st.selectbox("Wybierz naczepę do edycji", list(options_n.keys()))
-                wybrana_n = options_n[wybrany_label_n]
-                
-                with st.form("form_edytuj_naczepe"):
-                    e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrana_n.get('nr_rej', ''))
-                    e_vin = st.text_input("Numer VIN", value=wybrana_n.get('vin', ''))
-                    
-                    p_val = datetime.datetime.strptime(str(wybrana_n['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrana_n.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(str(wybrana_n['oc_data'])[:10], "%Y-%m-%d").date() if wybrana_n.get('oc_data') else datetime.date.today()
-                    
-                    e_przeglad = st.date_input("Termin przeglądu", value=p_val)
-                    e_oc = st.date_input("Termin OC", value=oc_val)
-                    
-                    col_btn1, col_btn2 = st.columns(2)
-                    with col_btn1:
-                        if st.form_submit_button("Zapisz zmiany"):
-                            db.edytuj_naczepe(wybrana_n['id'], e_nr_rej, e_vin, e_przeglad, e_oc)
-                            st.success("Zaktualizowano!")
-                            st.rerun()
-                    with col_btn2:
-                        if st.form_submit_button("🗑️ Usuń naczepę"):
-                            db.usun_naczepe(wybrana_n['id'])
-                            st.warning("Usunięto naczepę!")
-                            st.rerun()
-
-    st.subheader("Lista Naczep")
-    szukaj_n = st.text_input("🔍 Szukaj naczepy (nr rej, VIN):", key="search_n")
-    if len(naczepy_list) > 0:
-        df_n = pd.DataFrame(naczepy_list)
-        if szukaj_n:
-            df_n = df_n[df_n.apply(lambda r: szukaj_n.lower() in str(r.values).lower(), axis=1)]
-        if not df_n.empty and 'id' in df_n.columns:
-            st.dataframe(df_n.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_n, use_container_width=True, hide_index=True)
-    else:
-        st.info("Brak naczep w bazie.")
-
-# ==============================================================================
-# 3. POJAZDY INNE
-# ==============================================================================
-elif menu == "Pojazdy Inne":
-    st.header("🚗 Pojazdy Inne")
-    inne_list = db.pobierz_inne_pojazdy()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("➕ Dodaj inny pojazd"):
-            with st.form("form_dodaj_inny", clear_on_submit=True):
-                nazwa = st.text_input("Nazwa / Opis pojazdu")
-                nr_rej = st.text_input("Numer rejestracyjny")
-                vin = st.text_input("Numer VIN")
-                przeglad = st.date_input("Termin przeglądu technicznego", value=datetime.date.today())
-                oc = st.date_input("Termin ubezpieczenia OC", value=datetime.date.today())
-                if st.form_submit_button("Zapisz pojazd"):
-                    if nazwa or nr_rej:
-                        db.dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad, oc)
-                        st.success("Dodano pojazd!")
-                        st.rerun()
-                    else:
-                        st.error("Nazwa lub numer rejestracyjny są wymagane!")
-
-    with col2:
-        if len(inne_list) > 0:
-            with st.expander("✏️ Edytuj / Usuń pojazd"):
-                options_i = {f"{i.get('nazwa', 'Pojazd')} - {i.get('nr_rej', '')}": i for i in inne_list}
-                wybrany_label_i = st.selectbox("Wybierz pojazd do edycji", list(options_i.keys()))
-                wybrany_i = options_i[wybrany_label_i]
-                
-                with st.form("form_edytuj_inny"):
-                    e_nazwa = st.text_input("Nazwa / Opis", value=wybrany_i.get('nazwa', ''))
-                    e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrany_i.get('nr_rej', ''))
-                    e_vin = st.text_input("Numer VIN", value=wybrany_i.get('vin', ''))
-                    
-                    p_val = datetime.datetime.strptime(str(wybrany_i['przeglad_data'])[:10], "%Y-%m-%d").date() if wybrany_i.get('przeglad_data') else datetime.date.today()
-                    oc_val = datetime.datetime.strptime(str(wybrany_i['oc_data'])[:10], "%Y-%m-%d").date() if wybrany_i.get('oc_data') else datetime.date.today()
-                    
-                    e_przeglad = st.date_input("Termin przeglądu", value=p_val)
-                    e_oc = st.date_input("Termin OC", value=oc_val)
-                    
-                    col_btn1, col_btn2 = st.columns(2)
-                    with col_btn1:
-                        if st.form_submit_button("Zapisz zmiany"):
-                            db.edytuj_inny_pojazd(wybrany_i['id'], e_nazwa, e_nr_rej, e_vin, e_przeglad, e_oc)
-                            st.success("Zaktualizowano!")
-                            st.rerun()
-                    with col_btn2:
-                        if st.form_submit_button("🗑️ Usuń pojazd"):
-                            db.usun_inny_pojazd(wybrany_i['id'])
-                            st.warning("Usunięto pojazd!")
-                            st.rerun()
-
-    st.subheader("Lista Innych Pojazdów")
-    szukaj_i = st.text_input("🔍 Szukaj pojazdu:", key="search_i")
-    if len(inne_list) > 0:
-        df_i = pd.DataFrame(inne_list)
-        if szukaj_i:
-            df_i = df_i[df_i.apply(lambda r: szukaj_i.lower() in str(r.values).lower(), axis=1)]
-        if not df_i.empty and 'id' in df_i.columns:
-            st.dataframe(df_i.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_i, use_container_width=True, hide_index=True)
-    else:
-        st.info("Brak pojazdów w bazie.")
-
-# ==============================================================================
-# 4. KIEROWCY
-# ==============================================================================
-elif menu == "Kierowcy":
-    st.header("👨‍✈️ Kierowcy")
-    kierowcy_list = db.pobierz_kierowcow()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("➕ Dodaj kierowcę"):
-            with st.form("form_dodaj_kierowce", clear_on_submit=True):
-                nazwisko = st.text_input("Nazwisko")
+    # --- Formularz dodawania nowego kierowcy ---
+    with st.expander("➕ Dodaj nowego kierowca", expanded=False):
+        with st.form("form_dodaj_kierowce", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
                 imie = st.text_input("Imię")
+                nazwisko = st.text_input("Nazwisko")
                 pesel = st.text_input("PESEL")
+            with col2:
                 paszport = st.text_input("Paszport")
                 dowod = st.text_input("Dowód osobisty")
                 prawo_jazdy = st.text_input("Prawo jazdy")
-                
-                if st.form_submit_button("Zapisz kierowcę"):
-                    if nazwisko or imie:
-                        db.dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod, prawo_jazdy)
-                        st.success("Dodano kierowcę!")
+
+            submit_dodaj = st.form_submit_button("Zapisz kierowcę")
+            if submit_dodaj:
+                if nazwisko or imie:
+                    ok, msg = db.dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod, prawo_jazdy)
+                    if ok:
+                        st.success("Dodano kierowcę pomyślnie!")
                         st.rerun()
                     else:
-                        st.error("Imię lub nazwisko są wymagane!")
+                        st.error(f"Błąd podczas dodawania do bazy danych: {msg}")
+                else:
+                    st.warning("Wymagane jest podanie przynajmniej imienia lub nazwiska!")
 
-    with col2:
-        if len(kierowcy_list) > 0:
-            with st.expander("✏️ Edytuj / Usuń kierowcę"):
-                options_k = {f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k for k in kierowcy_list}
-                wybrany_label_k = st.selectbox("Wybierz kierowcę do edycji", list(options_k.keys()))
-                wybrany_k = options_k[wybrany_label_k]
-                
-                with st.form("form_edytuj_kierowce"):
-                    e_nazwisko = st.text_input("Nazwisko", value=wybrany_k.get('nazwisko', ''))
-                    e_imie = st.text_input("Imię", value=wybrany_k.get('imie', ''))
-                    e_pesel = st.text_input("PESEL", value=wybrany_k.get('pesel', ''))
-                    e_paszport = st.text_input("Paszport", value=wybrany_k.get('paszport', ''))
-                    e_dowod = st.text_input("Dowód osobisty", value=wybrany_k.get('dowod_osobisty', ''))
-                    e_prawo_jazdy = st.text_input("Prawo jazdy", value=wybrany_k.get('prawo_jazdy', ''))
-                    
-                    col_btn1, col_btn2 = st.columns(2)
+    st.divider()
+
+    # --- Lista i edycja kierowców ---
+    kierowcy = db.pobierz_kierowcow()
+
+    if not kierowcy:
+        st.info("Brak kierowców w bazie danych.")
+    else:
+        st.subheader("Lista kierowców")
+        
+        for k in kierowcy:
+            k_id = k.get("id")
+            k_imie = k.get("imie") or ""
+            k_nazwisko = k.get("nazwisko") or ""
+            k_pesel = k.get("pesel") or ""
+            k_paszport = k.get("paszport") or ""
+            k_dowod = k.get("dowod_osobisty") or ""
+            k_pj = k.get("prawo_jazdy") or ""
+
+            label = f"ID {k_id}: {k_imie} {k_nazwisko}".strip()
+            
+            with st.expander(label):
+                with st.form(f"form_edytuj_kierowce_{k_id}"):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        e_imie = st.text_input("Imię", value=k_imie, key=f"imie_{k_id}")
+                        e_nazwisko = st.text_input("Nazwisko", value=k_nazwisko, key=f"nazwisko_{k_id}")
+                        e_pesel = st.text_input("PESEL", value=k_pesel, key=f"pesel_{k_id}")
+                    with c2:
+                        e_paszport = st.text_input("Paszport", value=k_paszport, key=f"paszport_{k_id}")
+                        e_dowod = st.text_input("Dowód osobisty", value=k_dowod, key=f"dowod_{k_id}")
+                        e_pj = st.text_input("Prawo jazdy", value=k_pj, key=f"pj_{k_id}")
+
+                    col_btn1, col_btn2 = st.columns([1, 1])
                     with col_btn1:
-                        if st.form_submit_button("Zapisz zmiany"):
-                            db.edytuj_kierowce(
-                                wybrany_k['id'], e_nazwisko, e_imie, e_pesel, e_paszport, e_dowod, e_prawo_jazdy
-                            )
+                        submit_edytuj = st.form_submit_button("💾 Zapisz zmiany")
+                    with col_btn2:
+                        submit_usun = st.form_submit_button("🗑️ Usuń kierowcę", type="primary")
+
+                    if submit_edytuj:
+                        ok, msg = db.edytuj_kierowce(k_id, e_nazwisko, e_imie, e_pesel, e_paszport, e_dowod, e_pj)
+                        if ok:
                             st.success("Zaktualizowano dane kierowcy!")
                             st.rerun()
-                    with col_btn2:
-                        if st.form_submit_button("🗑️ Usuń kierowcę"):
-                            db.usun_kierowce(wybrany_k['id'])
-                            st.warning("Usunięto kierowcę!")
-                            st.rerun()
+                        else:
+                            st.error(f"Błąd edycji: {msg}")
 
-    st.subheader("Lista Kierowców")
-    szukaj_k = st.text_input("🔍 Szukaj kierowcy (nazwisko, imię, PESEL):", key="search_k")
-    if len(kierowcy_list) > 0:
-        df_k = pd.DataFrame(kierowcy_list)
-        
-        # Porządkowanie kolumn w czytelnej kolejności
-        kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy"]
-        dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
-        df_k = df_k[dostepne_kolumny]
-        
-        # Zmiana nagłówków na ładne nazwy
-        df_k = df_k.rename(columns={
-            "nazwisko": "Nazwisko",
-            "imie": "Imię",
-            "pesel": "PESEL",
-            "paszport": "Paszport",
-            "dowod_osobisty": "Dowód osobisty",
-            "prawo_jazdy": "Prawo jazdy"
-        })
-        
-        if szukaj_k:
-            df_k = df_k[df_k.apply(lambda r: szukaj_k.lower() in str(r.values).lower(), axis=1)]
-            
-        st.dataframe(df_k, use_container_width=True, hide_index=True)
-    else:
-        st.info("Brak kierowców w bazie.")
+                    if submit_usun:
+                        ok, msg = db.usun_kierowce(k_id)
+                        if ok:
+                            st.success("Usunięto kierowcę!")
+                            st.rerun()
+                        else:
+                            st.error(f"Błąd usuwania: {msg}")
+
+# =========================================================
+# TAB: POJAZDY
+# =========================================================
+with tab_pojazdy:
+    st.header("Flota Pojazdów")
+    st.write("Sekcja w budowie...")
