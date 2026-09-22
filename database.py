@@ -1,14 +1,34 @@
 import sqlite3
 import pandas as pd
+import hashlib
 
 def get_connection():
     return sqlite3.connect("baza_floty.db", check_same_thread=False)
+
+# Helper do szyfrowania haseł
+def make_hashes(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def check_hashes(password, hashed_text):
+    if make_hashes(password) == hashed_text:
+        return hashed_text
+    return False
 
 def init_db():
     conn = get_connection()
     c = conn.cursor()
     
-    # 1. Tabela Kierowców (zaktualizowane pola)
+    # 1. Tabela Użytkowników
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS uzytkownicy (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            login TEXT UNIQUE,
+            haslo TEXT,
+            rola TEXT
+        )
+    ''')
+    
+    # 2. Tabela Kierowców
     c.execute('''
         CREATE TABLE IF NOT EXISTS kierowcy (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +42,7 @@ def init_db():
         )
     ''')
     
-    # 2. Tabela Ciągników
+    # 3. Tabela Ciągników
     c.execute('''
         CREATE TABLE IF NOT EXISTS ciagniki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +53,7 @@ def init_db():
         )
     ''')
     
-    # 3. Tabela Naczep
+    # 4. Tabela Naczep
     c.execute('''
         CREATE TABLE IF NOT EXISTS naczepy (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +63,7 @@ def init_db():
         )
     ''')
 
-    # 4. Tabela Inne Pojazdy (busy, osobowe, przyczepy)
+    # 5. Tabela Inne Pojazdy
     c.execute('''
         CREATE TABLE IF NOT EXISTS inne_pojazdy (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +76,32 @@ def init_db():
     ''')
     
     conn.commit()
+
+    # Tworzenie domyślnych kont, jeśli tabela użytkowników jest pusta
+    c.execute("SELECT COUNT(*) FROM uzytkownicy")
+    if c.fetchone()[0] == 0:
+        # Domyślny admin: admin / admin123
+        c.execute("INSERT INTO uzytkownicy (login, haslo, rola) VALUES (?, ?, ?)",
+                  ("admin", make_hashes("admin123"), "admin"))
+        # Domyślny użytkownik odczytu: spedytor / spedytor123
+        c.execute("INSERT INTO uzytkownicy (login, haslo, rola) VALUES (?, ?, ?)",
+                  ("spedytor", make_hashes("spedytor123"), "odczyt"))
+        conn.commit()
+
     conn.close()
+
+# --- FUNKCJE LOGOWANIA ---
+def zaloguj_uzytkownika(login, haslo):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT rola, haslo FROM uzytkownicy WHERE login = ?", (login,))
+    data = c.fetchone()
+    conn.close()
+    if data:
+        rola, hashed_pw = data[0], data[1]
+        if check_hashes(haslo, hashed_pw):
+            return rola
+    return None
 
 # --- FUNKCJE DLA KIEROWCÓW ---
 def dodaj_kierowce(imie, pesel, nr_pj, typ_doc, nr_doc, waznosc_doc, waznosc_karty):
