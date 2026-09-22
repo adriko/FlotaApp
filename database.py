@@ -132,50 +132,25 @@ def pobierz_kierowcow():
         return []
 
 def dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
-    full_name = f"{imie} {nazwisko}".strip()
-    
     data = {
-        "imie_nazwisko": full_name,
         "nazwisko": nazwisko,
         "imie": imie,
         "pesel": pesel,
         "paszport": paszport,
         "dowod_osobisty": dowod_osobisty,
-        "nr_prawo_jazdy": prawo_jazdy,
         "prawo_jazdy": prawo_jazdy
     }
-    
-    # Obsługa uniwersalnych pól dla paszportu / dowodu
-    if paszport:
-        data["typ_dokumentu"] = "Paszport"
-        data["nr_dokumentu"] = paszport
-    elif dowod_osobisty:
-        data["typ_dokumentu"] = "Dowód osobisty"
-        data["nr_dokumentu"] = dowod_osobisty
-
     supabase.table("kierowcy").insert(data).execute()
 
 def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
-    full_name = f"{imie} {nazwisko}".strip()
-    
     data = {
-        "imie_nazwisko": full_name,
         "nazwisko": nazwisko,
         "imie": imie,
         "pesel": pesel,
         "paszport": paszport,
         "dowod_osobisty": dowod_osobisty,
-        "nr_prawo_jazdy": prawo_jazdy,
         "prawo_jazdy": prawo_jazdy
     }
-    
-    if paszport:
-        data["typ_dokumentu"] = "Paszport"
-        data["nr_dokumentu"] = paszport
-    elif dowod_osobisty:
-        data["typ_dokumentu"] = "Dowód osobisty"
-        data["nr_dokumentu"] = dowod_osobisty
-
     supabase.table("kierowcy").update(data).eq("id", id_kierowcy).execute()
 
 def usun_kierowce(id_kierowcy):

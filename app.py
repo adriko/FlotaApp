@@ -282,38 +282,7 @@ elif menu == "Pojazdy Inne":
 # ==============================================================================
 elif menu == "Kierowcy":
     st.header("👨‍✈️ Kierowcy")
-    kierowcy_raw = db.pobierz_kierowcow()
-    
-    # Przetwarzanie danych, aby wymusić osobne kolumny
-    kierowcy_processed = []
-    for k in kierowcy_raw:
-        imie = k.get('imie', '')
-        nazwisko = k.get('nazwisko', '')
-        
-        # Jeśli imię i nazwisko są w jednym polu 'imie_nazwisko', rozdzielamy je
-        if not imie and not nazwisko and k.get('imie_nazwisko'):
-            parts = str(k.get('imie_nazwisko')).strip().split(' ', 1)
-            imie = parts[0] if len(parts) > 0 else ''
-            nazwisko = parts[1] if len(parts) > 1 else ''
-
-        paszport = k.get('paszport', '')
-        dowod = k.get('dowod_osobisty', '')
-        if not paszport and k.get('typ_dokumentu') == 'Paszport':
-            paszport = k.get('nr_dokumentu', '')
-        if not dowod and k.get('typ_dokumentu') == 'Dowód osobisty':
-            dowod = k.get('nr_dokumentu', '')
-
-        prawo_jazdy = k.get('prawo_jazdy') or k.get('nr_prawo_jazdy') or ''
-
-        kierowcy_processed.append({
-            "id": k.get('id'),
-            "Nazwisko": nazwisko,
-            "Imię": imie,
-            "PESEL": k.get('pesel', ''),
-            "Paszport": paszport,
-            "Dowód osobisty": dowod,
-            "Prawo jazdy": prawo_jazdy
-        })
+    kierowcy_list = db.pobierz_kierowcow()
     
     col1, col2 = st.columns(2)
     with col1:
@@ -335,19 +304,19 @@ elif menu == "Kierowcy":
                         st.error("Imię lub nazwisko są wymagane!")
 
     with col2:
-        if len(kierowcy_processed) > 0:
+        if len(kierowcy_list) > 0:
             with st.expander("✏️ Edytuj / Usuń kierowcę"):
-                options_k = {f"{k.get('Nazwisko', '')} {k.get('Imię', '')} (PESEL: {k.get('PESEL', '-')})": k for k in kierowcy_processed}
+                options_k = {f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k for k in kierowcy_list}
                 wybrany_label_k = st.selectbox("Wybierz kierowcę do edycji", list(options_k.keys()))
                 wybrany_k = options_k[wybrany_label_k]
                 
                 with st.form("form_edytuj_kierowce"):
-                    e_nazwisko = st.text_input("Nazwisko", value=wybrany_k.get('Nazwisko', ''))
-                    e_imie = st.text_input("Imię", value=wybrany_k.get('Imię', ''))
-                    e_pesel = st.text_input("PESEL", value=wybrany_k.get('PESEL', ''))
-                    e_paszport = st.text_input("Paszport", value=wybrany_k.get('Paszport', ''))
-                    e_dowod = st.text_input("Dowód osobisty", value=wybrany_k.get('Dowód osobisty', ''))
-                    e_prawo_jazdy = st.text_input("Prawo jazdy", value=wybrany_k.get('Prawo jazdy', ''))
+                    e_nazwisko = st.text_input("Nazwisko", value=wybrany_k.get('nazwisko', ''))
+                    e_imie = st.text_input("Imię", value=wybrany_k.get('imie', ''))
+                    e_pesel = st.text_input("PESEL", value=wybrany_k.get('pesel', ''))
+                    e_paszport = st.text_input("Paszport", value=wybrany_k.get('paszport', ''))
+                    e_dowod = st.text_input("Dowód osobisty", value=wybrany_k.get('dowod_osobisty', ''))
+                    e_prawo_jazdy = st.text_input("Prawo jazdy", value=wybrany_k.get('prawo_jazdy', ''))
                     
                     col_btn1, col_btn2 = st.columns(2)
                     with col_btn1:
@@ -365,12 +334,24 @@ elif menu == "Kierowcy":
 
     st.subheader("Lista Kierowców")
     szukaj_k = st.text_input("🔍 Szukaj kierowcy (nazwisko, imię, PESEL):", key="search_k")
-    if len(kierowcy_processed) > 0:
-        df_k = pd.DataFrame(kierowcy_processed)
+    if len(kierowcy_list) > 0:
+        df_k = pd.DataFrame(kierowcy_list)
         
-        if 'id' in df_k.columns:
-            df_k = df_k.drop(columns=['id'])
-            
+        # Porządkowanie kolumn w czytelnej kolejności
+        kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy"]
+        dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
+        df_k = df_k[dostepne_kolumny]
+        
+        # Zmiana nagłówków na ładne nazwy
+        df_k = df_k.rename(columns={
+            "nazwisko": "Nazwisko",
+            "imie": "Imię",
+            "pesel": "PESEL",
+            "paszport": "Paszport",
+            "dowod_osobisty": "Dowód osobisty",
+            "prawo_jazdy": "Prawo jazdy"
+        })
+        
         if szukaj_k:
             df_k = df_k[df_k.apply(lambda r: szukaj_k.lower() in str(r.values).lower(), axis=1)]
             
