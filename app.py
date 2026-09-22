@@ -30,7 +30,7 @@ def sprawdz_terminy(lista_obiektow, typ_pojazdu):
     za_30_dni = dzisiaj + datetime.timedelta(days=30)
     
     for obj in lista_obiektow:
-        nazwa_ident = obj.get('nr_rej') or obj.get('nazwa') or f"ID {obj.get('id')}"
+        nazwa_ident = obj.get('nr_rej') or obj.get('typ_pojazdu') or obj.get('nazwa') or f"ID {obj.get('id')}"
         
         # Przegląd techniczny
         p_dt = parsuj_date(obj.get('przeglad_data'))
@@ -265,14 +265,14 @@ elif menu == "Pojazdy inne":
     with col1:
         with st.expander("➕ Dodaj pojazd"):
             with st.form("form_dodaj_inny", clear_on_submit=True):
-                nazwa = st.text_input("Model / opis pojazdu")
+                typ_pojazdu = st.text_input("Model / opis pojazdu")
                 nr_rej = st.text_input("Numer rejestracyjny")
                 vin = st.text_input("Numer VIN")
                 przeglad = st.date_input("Termin przeglądu technicznego", value=datetime.date.today())
                 oc = st.date_input("Termin ubezpieczenia OC", value=datetime.date.today())
                 if st.form_submit_button("Zapisz pojazd"):
-                    if nazwa or nr_rej:
-                        ok, msg = db.dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad, oc)
+                    if typ_pojazdu or nr_rej:
+                        ok, msg = db.dodaj_inny_pojazd(typ_pojazdu, nr_rej, vin, przeglad, oc)
                         if ok:
                             st.success("Dodano pojazd!")
                             st.rerun()
@@ -284,12 +284,12 @@ elif menu == "Pojazdy inne":
     with col2:
         if len(inne_list) > 0:
             with st.expander("✏️ Edytuj / Usuń pojazd"):
-                options_i = {f"{i.get('nazwa', 'Pojazd')} - {i.get('nr_rej', '')}": i for i in inne_list}
+                options_i = {f"{i.get('typ_pojazdu', 'Pojazd')} - {i.get('nr_rej', '')}": i for i in inne_list}
                 wybrany_label_i = st.selectbox("Wybierz pojazd do edycji", list(options_i.keys()))
                 wybrany_i = options_i[wybrany_label_i]
                 
                 with st.form("form_edytuj_inny"):
-                    e_nazwa = st.text_input("Model / opis", value=wybrany_i.get('nazwa', ''))
+                    e_typ_pojazdu = st.text_input("Model / opis", value=wybrany_i.get('typ_pojazdu', ''))
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrany_i.get('nr_rej', ''))
                     e_vin = st.text_input("Numer VIN", value=wybrany_i.get('vin', ''))
                     
@@ -302,7 +302,7 @@ elif menu == "Pojazdy inne":
                     col_btn1, col_btn2 = st.columns(2)
                     with col_btn1:
                         if st.form_submit_button("Zapisz zmiany"):
-                            ok, msg = db.edytuj_inny_pojazd(wybrany_i['id'], e_nazwa, e_nr_rej, e_vin, e_przeglad, e_oc)
+                            ok, msg = db.edytuj_inny_pojazd(wybrany_i['id'], e_typ_pojazdu, e_nr_rej, e_vin, e_przeglad, e_oc)
                             if ok:
                                 st.success("Zaktualizowano dane pojazdu!")
                                 st.rerun()
@@ -316,6 +316,23 @@ elif menu == "Pojazdy inne":
                                 st.rerun()
                             else:
                                 st.error(f"Błąd: {msg}")
+
+    st.subheader("Lista innych pojazdów")
+    if len(inne_list) > 0:
+        df_i = pd.DataFrame(inne_list)
+        kolumny_i = ["typ_pojazdu", "nr_rej", "vin", "przeglad_data", "oc_data"]
+        dostepne_i = [col for col in kolumny_i if col in df_i.columns]
+        df_i = df_i[dostepne_i].fillna("-")
+        df_i = df_i.rename(columns={
+            "typ_pojazdu": "Model / opis",
+            "nr_rej": "Numer rejestracyjny",
+            "vin": "VIN",
+            "przeglad_data": "Przegląd techniczny",
+            "oc_data": "Ubezpieczenie OC"
+        })
+        st.dataframe(df_i, use_container_width=True, hide_index=True)
+    else:
+        st.info("Brak pojazdów w bazie.")
 
     st.subheader("Lista innych pojazdów")
     if len(inne_list) > 0:
