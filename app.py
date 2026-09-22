@@ -167,10 +167,17 @@ elif menu == "Ciągniki siodłowe":
         df_c = pd.DataFrame(ciagniki_list)
         if szukaj_c:
             df_c = df_c[df_c.apply(lambda r: szukaj_c.lower() in str(r.values).lower(), axis=1)]
-        if not df_c.empty and 'id' in df_c.columns:
-            st.dataframe(df_c.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_c, use_container_width=True, hide_index=True)
+        
+        kolumny_c = ["nr_rej", "vin", "przeglad_data", "oc_data"]
+        dostepne_c = [col for col in kolumny_c if col in df_c.columns]
+        df_c = df_c[dostepne_c].fillna("-")
+        df_c = df_c.rename(columns={
+            "nr_rej": "Numer rejestracyjny",
+            "vin": "VIN",
+            "przeglad_data": "Przegląd techniczny",
+            "oc_data": "Ubezpieczenie OC"
+        })
+        st.dataframe(df_c, use_container_width=True, hide_index=True)
     else:
         st.info("Brak ciągników w bazie.")
 
@@ -209,7 +216,7 @@ elif menu == "Naczepy":
                 
                 with st.form("form_edytuj_naczepe"):
                     e_nr_rej = st.text_input("Numer rejestracyjny", value=wybrana_n.get('nr_rej', ''))
-                    e_vin = st.text_input("Numer VIN", value=wybrana_n.get('vin', ''))
+                    e_vin = st.text_input("Numer VIN", value=wybrany_n.get('vin', ''))
                     
                     p_val = parsuj_date(wybrana_n.get('przeglad_data')) or datetime.date.today()
                     oc_val = parsuj_date(wybrana_n.get('oc_data')) or datetime.date.today()
@@ -241,10 +248,17 @@ elif menu == "Naczepy":
         df_n = pd.DataFrame(naczepy_list)
         if szukaj_n:
             df_n = df_n[df_n.apply(lambda r: szukaj_n.lower() in str(r.values).lower(), axis=1)]
-        if not df_n.empty and 'id' in df_n.columns:
-            st.dataframe(df_n.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_n, use_container_width=True, hide_index=True)
+        
+        kolumny_n = ["nr_rej", "vin", "przeglad_data", "oc_data"]
+        dostepne_n = [col for col in kolumny_n if col in df_n.columns]
+        df_n = df_n[dostepne_n].fillna("-")
+        df_n = df_n.rename(columns={
+            "nr_rej": "Numer rejestracyjny",
+            "vin": "VIN",
+            "przeglad_data": "Przegląd techniczny",
+            "oc_data": "Ubezpieczenie OC"
+        })
+        st.dataframe(df_n, use_container_width=True, hide_index=True)
     else:
         st.info("Brak naczep w bazie.")
 
@@ -317,10 +331,18 @@ elif menu == "Pojazdy inne":
         df_i = pd.DataFrame(inne_list)
         if szukaj_i:
             df_i = df_i[df_i.apply(lambda r: szukaj_i.lower() in str(r.values).lower(), axis=1)]
-        if not df_i.empty and 'id' in df_i.columns:
-            st.dataframe(df_i.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.dataframe(df_i, use_container_width=True, hide_index=True)
+        
+        kolumny_i = ["nazwa", "nr_rej", "vin", "przeglad_data", "oc_data"]
+        dostepne_i = [col for col in kolumny_i if col in df_i.columns]
+        df_i = df_i[dostepne_i].fillna("-")
+        df_i = df_i.rename(columns={
+            "nazwa": "Model / opis",
+            "nr_rej": "Numer rejestracyjny",
+            "vin": "VIN",
+            "przeglad_data": "Przegląd techniczny",
+            "oc_data": "Ubezpieczenie OC"
+        })
+        st.dataframe(df_i, use_container_width=True, hide_index=True)
     else:
         st.info("Brak pojazdów w bazie.")
 
@@ -407,7 +429,7 @@ elif menu == "Kierowcy":
         # Kolejność dedykowanych kolumn
         kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy", "zezwolenie_data"]
         dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
-        df_k = df_k[dostepne_kolumny]
+        df_k = df_k[dostepne_kolumny].fillna("-")
         
         df_k = df_k.rename(columns={
             "nazwisko": "Nazwisko",
