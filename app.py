@@ -334,23 +334,6 @@ elif menu == "Pojazdy inne":
     else:
         st.info("Brak pojazdów w bazie.")
 
-    st.subheader("Lista innych pojazdów")
-    if len(inne_list) > 0:
-        df_i = pd.DataFrame(inne_list)
-        kolumny_i = ["nazwa", "nr_rej", "vin", "przeglad_data", "oc_data"]
-        dostepne_i = [col for col in kolumny_i if col in df_i.columns]
-        df_i = df_i[dostepne_i].fillna("-")
-        df_i = df_i.rename(columns={
-            "nazwa": "Model / opis",
-            "nr_rej": "Numer rejestracyjny",
-            "vin": "VIN",
-            "przeglad_data": "Przegląd techniczny",
-            "oc_data": "Ubezpieczenie OC"
-        })
-        st.dataframe(df_i, use_container_width=True, hide_index=True)
-    else:
-        st.info("Brak pojazdów w bazie.")
-
 # ==============================================================================
 # 5. KIEROWCY
 # ==============================================================================
