@@ -80,14 +80,13 @@ def usun_naczepe(id_naczepy):
 # ==================== POJAZDY INNE ====================
 def pobierz_inne_pojazdy():
     try:
-        # Próba pobrania tabeli 'inne_pojazdy' lub 'pojazdy_inne'
         res = supabase.table("inne_pojazdy").select("*").execute()
         return res.data if res.data is not None else []
-    except Exception as e:
+    except Exception:
         try:
             res = supabase.table("pojazdy_inne").select("*").execute()
             return res.data if res.data is not None else []
-        except Exception:
+        except Exception as e:
             print("Błąd pobierania innych pojazdów:", e)
             return []
 
@@ -132,26 +131,51 @@ def pobierz_kierowcow():
         print("Błąd pobierania kierowców:", e)
         return []
 
-def dodaj_kierowce(nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
+def dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
+    full_name = f"{imie} {nazwisko}".strip()
+    
     data = {
+        "imie_nazwisko": full_name,
         "nazwisko": nazwisko,
         "imie": imie,
         "pesel": pesel,
-        "dowod_osobisty": dowod_osobisty,
         "paszport": paszport,
+        "dowod_osobisty": dowod_osobisty,
+        "nr_prawo_jazdy": prawo_jazdy,
         "prawo_jazdy": prawo_jazdy
     }
+    
+    # Obsługa uniwersalnych pól dla paszportu / dowodu
+    if paszport:
+        data["typ_dokumentu"] = "Paszport"
+        data["nr_dokumentu"] = paszport
+    elif dowod_osobisty:
+        data["typ_dokumentu"] = "Dowód osobisty"
+        data["nr_dokumentu"] = dowod_osobisty
+
     supabase.table("kierowcy").insert(data).execute()
 
-def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, dowod_osobisty, paszport, prawo_jazdy):
+def edytuj_kierowce(id_kierowcy, nazwisko, imie, pesel, paszport, dowod_osobisty, prawo_jazdy):
+    full_name = f"{imie} {nazwisko}".strip()
+    
     data = {
+        "imie_nazwisko": full_name,
         "nazwisko": nazwisko,
         "imie": imie,
         "pesel": pesel,
-        "dowod_osobisty": dowod_osobisty,
         "paszport": paszport,
+        "dowod_osobisty": dowod_osobisty,
+        "nr_prawo_jazdy": prawo_jazdy,
         "prawo_jazdy": prawo_jazdy
     }
+    
+    if paszport:
+        data["typ_dokumentu"] = "Paszport"
+        data["nr_dokumentu"] = paszport
+    elif dowod_osobisty:
+        data["typ_dokumentu"] = "Dowód osobisty"
+        data["nr_dokumentu"] = dowod_osobisty
+
     supabase.table("kierowcy").update(data).eq("id", id_kierowcy).execute()
 
 def usun_kierowce(id_kierowcy):
