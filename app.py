@@ -162,12 +162,8 @@ elif menu == "Ciągniki siodłowe":
                                 st.error(f"Błąd: {msg}")
 
     st.subheader("Lista ciągników")
-    szukaj_c = st.text_input("🔍 Szukaj ciągnika (nr rej, VIN):", key="search_c")
     if len(ciagniki_list) > 0:
         df_c = pd.DataFrame(ciagniki_list)
-        if szukaj_c:
-            df_c = df_c[df_c.apply(lambda r: szukaj_c.lower() in str(r.values).lower(), axis=1)]
-        
         kolumny_c = ["nr_rej", "vin", "przeglad_data", "oc_data"]
         dostepne_c = [col for col in kolumny_c if col in df_c.columns]
         df_c = df_c[dostepne_c].fillna("-")
@@ -243,12 +239,8 @@ elif menu == "Naczepy":
                                 st.error(f"Błąd: {msg}")
 
     st.subheader("Lista naczep")
-    szukaj_n = st.text_input("🔍 Szukaj naczepy (nr rej, VIN):", key="search_n")
     if len(naczepy_list) > 0:
         df_n = pd.DataFrame(naczepy_list)
-        if szukaj_n:
-            df_n = df_n[df_n.apply(lambda r: szukaj_n.lower() in str(r.values).lower(), axis=1)]
-        
         kolumny_n = ["nr_rej", "vin", "przeglad_data", "oc_data"]
         dostepne_n = [col for col in kolumny_n if col in df_n.columns]
         df_n = df_n[dostepne_n].fillna("-")
@@ -326,12 +318,8 @@ elif menu == "Pojazdy inne":
                                 st.error(f"Błąd: {msg}")
 
     st.subheader("Lista innych pojazdów")
-    szukaj_i = st.text_input("🔍 Szukaj pojazdu:", key="search_i")
     if len(inne_list) > 0:
         df_i = pd.DataFrame(inne_list)
-        if szukaj_i:
-            df_i = df_i[df_i.apply(lambda r: szukaj_i.lower() in str(r.values).lower(), axis=1)]
-        
         kolumny_i = ["nazwa", "nr_rej", "vin", "przeglad_data", "oc_data"]
         dostepne_i = [col for col in kolumny_i if col in df_i.columns]
         df_i = df_i[dostepne_i].fillna("-")
@@ -422,15 +410,11 @@ elif menu == "Kierowcy":
                                 st.error(f"Błąd: {msg}")
 
     st.subheader("Lista kierowców")
-    szukaj_k = st.text_input("🔍 Szukaj kierowcy (nazwisko, imię, PESEL, zezwolenie):", key="search_k")
     if len(kierowcy_list) > 0:
         df_k = pd.DataFrame(kierowcy_list)
-        
-        # Kolejność dedykowanych kolumn
         kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy", "zezwolenie_data"]
         dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
         df_k = df_k[dostepne_kolumny].fillna("-")
-        
         df_k = df_k.rename(columns={
             "nazwisko": "Nazwisko",
             "imie": "Imię",
@@ -440,10 +424,6 @@ elif menu == "Kierowcy":
             "prawo_jazdy": "Prawo jazdy",
             "zezwolenie_data": "Termin zezwolenia"
         })
-        
-        if szukaj_k:
-            df_k = df_k[df_k.apply(lambda r: szukaj_k.lower() in str(r.values).lower(), axis=1)]
-            
         st.dataframe(df_k, use_container_width=True, hide_index=True)
     else:
         st.info("Brak kierowców w bazie.")
