@@ -362,7 +362,7 @@ elif menu == "Pojazdy inne":
             "przeglad_data": "Przegląd techniczny",
             "oc_data": "Ubezpieczenie OC"
         })
-        st.dataframe(df_i, use_container_width=True, height=600 hide_index=True)
+        st.dataframe(df_i, use_container_width=True, height=600, hide_index=True)
     else:
         st.info("Brak pojazdów w bazie.")
 
@@ -476,6 +476,6 @@ elif menu == "Kierowcy":
                 "prawo_jazdy": "Prawo jazdy",
                 "zezwolenie_data": "Termin zezwolenia"
             })
-            st.dataframe(df_k, use_container_width=True, height=600 hide_index=True)
+            st.dataframe(df_k, use_container_width=True, height=600, hide_index=True)
         else:
             st.info("Brak kierowców w bazie.")
