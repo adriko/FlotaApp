@@ -11,6 +11,9 @@ st.set_page_config(page_title="B&B TRANS - Flota", layout="wide")
 if "zalogowany" not in st.session_state:
     st.session_state["zalogowany"] = False
 
+if "kierowcy_odblokowani" not in st.session_state:
+    st.session_state["kierowcy_odblokowani"] = False
+
 # Nawigacja w lewym panelu bocznym
 st.sidebar.title("🚛 Menu floty")
 menu = st.sidebar.radio(
@@ -35,6 +38,7 @@ else:
     st.sidebar.success("👤 Zalogowano: Administrator")
     if st.sidebar.button("Wyloguj"):
         st.session_state["zalogowany"] = False
+        st.session_state["kierowcy_odblokowani"] = False
         st.rerun()
 
 st.title("🚚 B&B TRANS Sp. z o.o. - System zarządzania flotą")
@@ -342,8 +346,8 @@ elif menu == "Pojazdy inne":
                                 if ok:
                                     st.warning("Usunięto pojazd!")
                                     st.rerun()
-                                else:
-                                    st.error(f"Błąd: {msg}")
+                            else:
+                                st.error(f"Błąd: {msg}")
 
     st.subheader("Lista innych pojazdów")
     if len(inne_list) > 0:
@@ -367,92 +371,111 @@ elif menu == "Pojazdy inne":
 # ==============================================================================
 elif menu == "Kierowcy":
     st.header("👨‍✈️ Kierowcy")
-    kierowcy_list = db.pobierz_kierowcow()
     
-    if st.session_state["zalogowany"]:
-        col1, col2 = st.columns(2)
-        with col1:
-            with st.expander("➕ Dodaj kierowcę"):
-                with st.form("form_dodaj_kierowce", clear_on_submit=True):
-                    nazwisko = st.text_input("Nazwisko")
-                    imie = st.text_input("Imię")
-                    pesel = st.text_input("PESEL")
-                    paszport = st.text_input("Paszport")
-                    dowod = st.text_input("Dowód osobisty")
-                    prawo_jazdy = st.text_input("Prawo jazdy")
-                    
-                    ma_zezwolenie = st.checkbox("Obcokrajowiec (zezwolenie na pracę / oświadczenie)")
-                    zezwolenie_data = None
-                    if ma_zezwolenie:
-                        zezwolenie_data = st.date_input("Termin ważności zezwolenia", value=datetime.date.today())
-                    
-                    if st.form_submit_button("Zapisz kierowcę"):
-                        if nazwisko or imie:
-                            ok, msg = db.dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod, prawo_jazdy, zezwolenie_data)
-                            if ok:
-                                st.success("Dodano kierowcę!")
-                                st.rerun()
-                            else:
-                                st.error(f"Błąd bazy danych: {msg}")
-                        else:
-                            st.error("Nazwisko lub imię są wymagane!")
+    # Sprawdzamy czy użytkownik ma uprawnienia do podglądu (Admin LUB wpisane hasło do kierowców)
+    dostep_do_kierowcow = st.session_state["zalogowany"] or st.session_state["kierowcy_odblokowani"]
 
-        with col2:
-            if len(kierowcy_list) > 0:
-                with st.expander("✏️ Edytuj / Usuń kierowcę"):
-                    options_k = {f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k for k in kierowcy_list}
-                    wybrany_label_k = st.selectbox("Wybierz kierowcę do edycji", list(options_k.keys()))
-                    wybrany_k = options_k[wybrany_label_k]
-                    
-                    with st.form("form_edytuj_kierowce"):
-                        e_nazwisko = st.text_input("Nazwisko", value=wybrany_k.get('nazwisko', ''))
-                        e_imie = st.text_input("Imię", value=wybrany_k.get('imie', ''))
-                        e_pesel = st.text_input("PESEL", value=wybrany_k.get('pesel', ''))
-                        e_paszport = st.text_input("Paszport", value=wybrany_k.get('paszport', ''))
-                        e_dowod = st.text_input("Dowód osobisty", value=wybrany_k.get('dowod_osobisty', ''))
-                        e_prawo_jazdy = st.text_input("Prawo jazdy", value=wybrany_k.get('prawo_jazdy', ''))
-                        
-                        aktualne_zezwolenie = parsuj_date(wybrany_k.get('zezwolenie_data'))
-                        e_ma_zezwolenie = st.checkbox("Obcokrajowiec (zezwolenie na pracę)", value=(aktualne_zezwolenie is not None))
-                        e_zezwolenie_data = None
-                        if e_ma_zezwolenie:
-                            e_zezwolenie_data = st.date_input("Termin ważności zezwolenia", value=aktualne_zezwolenie or datetime.date.today())
-                        
-                        col_btn1, col_btn2 = st.columns(2)
-                        with col_btn1:
-                            if st.form_submit_button("Zapisz zmiany"):
-                                ok, msg = db.edytuj_kierowce(
-                                    wybrany_k['id'], e_nazwisko, e_imie, e_pesel, e_paszport, e_dowod, e_prawo_jazdy, e_zezwolenie_data
-                                )
-                                if ok:
-                                    st.success("Zaktualizowano dane kierowcy!")
-                                    st.rerun()
-                                else:
-                                    st.error(f"Błąd: {msg}")
-                        with col_btn2:
-                            if st.form_submit_button("🗑️ Usuń kierowcę"):
-                                ok, msg = db.usun_kierowce(wybrany_k['id'])
-                                if ok:
-                                    st.warning("Usunięto kierowcę!")
-                                    st.rerun()
-                                else:
-                                    st.error(f"Błąd: {msg}")
-
-    st.subheader("Lista kierowców")
-    if len(kierowcy_list) > 0:
-        df_k = pd.DataFrame(kierowcy_list)
-        kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy", "zezwolenie_data"]
-        dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
-        df_k = df_k[dostepne_kolumny].fillna("-")
-        df_k = df_k.rename(columns={
-            "nazwisko": "Nazwisko",
-            "imie": "Imię",
-            "pesel": "PESEL",
-            "paszport": "Paszport",
-            "dowod_osobisty": "Dowód osobisty",
-            "prawo_jazdy": "Prawo jazdy",
-            "zezwolenie_data": "Termin zezwolenia"
-        })
-        st.dataframe(df_k, use_container_width=True, hide_index=True)
+    if not dostep_do_kierowcow:
+        st.warning("🔒 Dostęp do danych osobowych kierowców (PESEL, dokumenty) jest chroniony hasłem.")
+        col_h1, col_h2 = st.columns([1, 2])
+        with col_h1:
+            haslo_k = st.text_input("Wprowadź hasło dostępu:", type="password", key="kierowcy_pass_input")
+            if st.button("Odblokuj listę kierowców"):
+                poprawne_haslo_k = st.secrets.get("KIEROWCY_PASSWORD", "")
+                if haslo_k == poprawne_haslo_k and poprawne_haslo_k != "":
+                    st.session_state["kierowcy_odblokowani"] = True
+                    st.success("Odblokowano dane!")
+                    st.rerun()
+                else:
+                    st.error("Nieprawidłowe hasło dostępu!")
     else:
-        st.info("Brak kierowców w bazie.")
+        kierowcy_list = db.pobierz_kierowcow()
+        
+        # Formularze dodawania/edycji dostępne TYLKO dla Administratora
+        if st.session_state["zalogowany"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                with st.expander("➕ Dodaj kierowcę"):
+                    with st.form("form_dodaj_kierowce", clear_on_submit=True):
+                        nazwisko = st.text_input("Nazwisko")
+                        imie = st.text_input("Imię")
+                        pesel = st.text_input("PESEL")
+                        paszport = st.text_input("Paszport")
+                        dowod = st.text_input("Dowód osobisty")
+                        prawo_jazdy = st.text_input("Prawo jazdy")
+                        
+                        ma_zezwolenie = st.checkbox("Obcokrajowiec (zezwolenie na pracę / oświadczenie)")
+                        zezwolenie_data = None
+                        if ma_zezwolenie:
+                            zezwolenie_data = st.date_input("Termin ważności zezwolenia", value=datetime.date.today())
+                        
+                        if st.form_submit_button("Zapisz kierowcę"):
+                            if nazwisko or imie:
+                                ok, msg = db.dodaj_kierowce(nazwisko, imie, pesel, paszport, dowod, prawo_jazdy, zezwolenie_data)
+                                if ok:
+                                    st.success("Dodano kierowcę!")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Błąd bazy danych: {msg}")
+                            else:
+                                st.error("Nazwisko lub imię są wymagane!")
+
+            with col2:
+                if len(kierowcy_list) > 0:
+                    with st.expander("✏️ Edytuj / Usuń kierowcę"):
+                        options_k = {f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k for k in kierowcy_list}
+                        wybrany_label_k = st.selectbox("Wybierz kierowcę do edycji", list(options_k.keys()))
+                        wybrany_k = options_k[wybrany_label_k]
+                        
+                        with st.form("form_edytuj_kierowce"):
+                            e_nazwisko = st.text_input("Nazwisko", value=wybrany_k.get('nazwisko', ''))
+                            e_imie = st.text_input("Imię", value=wybrany_k.get('imie', ''))
+                            e_pesel = st.text_input("PESEL", value=wybrany_k.get('pesel', ''))
+                            e_paszport = st.text_input("Paszport", value=wybrany_k.get('paszport', ''))
+                            e_dowod = st.text_input("Dowód osobisty", value=wybrany_k.get('dowod_osobisty', ''))
+                            e_prawo_jazdy = st.text_input("Prawo jazdy", value=wybrany_k.get('prawo_jazdy', ''))
+                            
+                            aktualne_zezwolenie = parsuj_date(wybrany_k.get('zezwolenie_data'))
+                            e_ma_zezwolenie = st.checkbox("Obcokrajowiec (zezwolenie na pracę)", value=(aktualne_zezwolenie is not None))
+                            e_zezwolenie_data = None
+                            if e_ma_zezwolenie:
+                                e_zezwolenie_data = st.date_input("Termin ważności zezwolenia", value=aktualne_zezwolenie or datetime.date.today())
+                            
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                if st.form_submit_button("Zapisz zmiany"):
+                                    ok, msg = db.edytuj_kierowce(
+                                        wybrany_k['id'], e_nazwisko, e_imie, e_pesel, e_paszport, e_dowod, e_prawo_jazdy, e_zezwolenie_data
+                                    )
+                                    if ok:
+                                        st.success("Zaktualizowano dane kierowcy!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Błąd: {msg}")
+                            with col_btn2:
+                                if st.form_submit_button("🗑️ Usuń kierowcę"):
+                                    ok, msg = db.usun_kierowce(wybrany_k['id'])
+                                    if ok:
+                                        st.warning("Usunięto kierowcę!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Błąd: {msg}")
+
+        st.subheader("Lista kierowców")
+        if len(kierowcy_list) > 0:
+            df_k = pd.DataFrame(kierowcy_list)
+            kolumny_kolejnosc = ["nazwisko", "imie", "pesel", "paszport", "dowod_osobisty", "prawo_jazdy", "zezwolenie_data"]
+            dostepne_kolumny = [col for col in kolumny_kolejnosc if col in df_k.columns]
+            df_k = df_k[dostepne_kolumny].fillna("-")
+            df_k = df_k.rename(columns={
+                "nazwisko": "Nazwisko",
+                "imie": "Imię",
+                "pesel": "PESEL",
+                "paszport": "Paszport",
+                "dowod_osobisty": "Dowód osobisty",
+                "prawo_jazdy": "Prawo jazdy",
+                "zezwolenie_data": "Termin zezwolenia"
+            })
+            st.dataframe(df_k, use_container_width=True, hide_index=True)
+        else:
+            st.info("Brak kierowców w bazie.")
