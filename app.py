@@ -346,8 +346,8 @@ elif menu == "Pojazdy inne":
                                 if ok:
                                     st.warning("Usunięto pojazd!")
                                     st.rerun()
-                            else:
-                                st.error(f"Błąd: {msg}")
+                                else:
+                                    st.error(f"Błąd: {msg}")
 
     st.subheader("Lista innych pojazdów")
     if len(inne_list) > 0:
