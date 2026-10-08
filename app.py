@@ -166,13 +166,68 @@ elif menu == "📋 Zestawienie / Składy":
 
     przypisania_list = db.pobierz_przypisania()
 
+    # --- WERYFIKACJA DUBLOWANIA CIĄGNIKÓW I NACZEP ---
+    ciagniki_uzycie = {}
+    naczepy_uzycie = {}
+
+    for p in przypisania_list:
+        k_tekst = (
+            f"{p['kierowcy']['nazwisko']} {p['kierowcy']['imie']}"
+            if p.get("kierowcy")
+            else "Nieprzypisany kierowca"
+        )
+        if p.get("ciagnik_id") and p.get("ciagniki"):
+            c_rej = p["ciagniki"]["nr_rej"]
+            ciagniki_uzycie.setdefault(c_rej, []).append(k_tekst)
+
+        if p.get("naczepa_id") and p.get("naczepy"):
+            n_rej = p["naczepy"]["nr_rej"]
+            naczepy_uzycie.setdefault(n_rej, []).append(k_tekst)
+
+    konflikty = []
+    for rej, kierowcy_zbieg in ciagniki_uzycie.items():
+        if len(kierowcy_zbieg) > 1:
+            konflikty.append(
+                f"Ciągnik **{rej}** jest przypisany do wielu kierowców: {', '.join(kierowcy_zbieg)}"
+            )
+
+    for rej, kierowcy_zbieg in naczepy_uzycie.items():
+        if len(kierowcy_zbieg) > 1:
+            konflikty.append(
+                f"Naczepa **{rej}** jest przypisana do wielu kierowców: {', '.join(kierowcy_zbieg)}"
+            )
+
+    if konflikty:
+        tresc_ostrzezenia = "⚠️ **Uwaga: Wykryto powielenie przypisania sprzętu!**\n\n"
+        for k in konflikty:
+            tresc_ostrzezenia += f"- {k}\n"
+        st.warning(tresc_ostrzezenia)
+
     if st.session_state["is_admin"]:
         kierowcy_list = db.pobierz_kierowcow()
         ciagniki_list = db.pobierz_ciagniki()
         naczepy_list = db.pobierz_naczepy()
 
-        opcje_kierowcy = {"-- Brak / Nieprzypisany --": None}
-        opcje_kierowcy.update(
+        # ID kierowców mających już jakikolwiek skład
+        zajeci_kierowcy_ids = {
+            p["kierowca_id"] for p in przypisania_list if p.get("kierowca_id")
+        }
+
+        # Opcje do DODAWANIA: tylko wolni kierowcy
+        opcje_kierowcy_dodaj = {"-- Brak / Nieprzypisany --": None}
+        opcje_kierowcy_dodaj.update(
+            {
+                f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k[
+                    "id"
+                ]
+                for k in kierowcy_list
+                if k["id"] not in zajeci_kierowcy_ids
+            }
+        )
+
+        # Opcje do EDYCJI: wszyscy kierowcy
+        opcje_kierowcy_wszyscy = {"-- Brak / Nieprzypisany --": None}
+        opcje_kierowcy_wszyscy.update(
             {
                 f"{k.get('nazwisko', '')} {k.get('imie', '')} (PESEL: {k.get('pesel', '-')})": k[
                     "id"
@@ -203,7 +258,9 @@ elif menu == "📋 Zestawienie / Składy":
             st.expander("➕ Dodaj / Przypisz skład"),
             st.form("form_dodaj_przypisanie", clear_on_submit=True),
         ):
-            kier_wybor = st.selectbox("Kierowca", list(opcje_kierowcy.keys()))
+            kier_wybor = st.selectbox(
+                "Kierowca (tylko nieprzypisani)", list(opcje_kierowcy_dodaj.keys())
+            )
             ciag_wybor = st.selectbox("Ciągnik siodłowy", list(opcje_ciagniki.keys()))
             nacz_wybor = st.selectbox("Naczepa", list(opcje_naczepy.keys()))
             uwagi_wpis = st.text_area(
@@ -212,7 +269,7 @@ elif menu == "📋 Zestawienie / Składy":
 
             if st.form_submit_button("Zapisz przypisanie"):
                 ok, msg = db.dodaj_przypisanie(
-                    opcje_kierowcy[kier_wybor],
+                    opcje_kierowcy_dodaj[kier_wybor],
                     opcje_ciagniki[ciag_wybor],
                     opcje_naczepy[nacz_wybor],
                     uwagi_wpis,
@@ -254,12 +311,14 @@ elif menu == "📋 Zestawienie / Składy":
                         c_id = wybrany_zestaw.get("ciagnik_id")
                         n_id = wybrany_zestaw.get("naczepa_id")
 
-                        k_keys = list(opcje_kierowcy.keys())
+                        k_keys = list(opcje_kierowcy_wszyscy.keys())
                         c_keys = list(opcje_ciagniki.keys())
                         n_keys = list(opcje_naczepy.keys())
 
                         idx_k = [
-                            i for i, k in enumerate(k_keys) if opcje_kierowcy[k] == k_id
+                            i
+                            for i, k in enumerate(k_keys)
+                            if opcje_kierowcy_wszyscy[k] == k_id
                         ]
                         idx_c = [
                             i for i, k in enumerate(c_keys) if opcje_ciagniki[k] == c_id
@@ -286,7 +345,7 @@ elif menu == "📋 Zestawienie / Składy":
                             if st.form_submit_button("Zapisz zmiany"):
                                 ok, msg = db.edytuj_przypisanie(
                                     wybrany_zestaw["id"],
-                                    opcje_kierowcy[e_kier],
+                                    opcje_kierowcy_wszyscy[e_kier],
                                     opcje_ciagniki[e_ciag],
                                     opcje_naczepy[e_nacz],
                                     e_uwagi,
@@ -415,8 +474,7 @@ elif menu == "Ciągniki Siodłowe":
 
                     with st.form("form_edytuj_ciagnik"):
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrany.get("nr_rej", "")
-                        )
+                            "Numer rejestracyjny", value=wybrany.get("nr_rej", ""))
                         e_vin = st.text_input("Numer VIN", value=wybrany.get("vin", ""))
 
                         p_val = (
@@ -512,8 +570,7 @@ elif menu == "Naczepy":
 
                     with st.form("form_edytuj_naczepe"):
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrana_n.get("nr_rej", "")
-                        )
+                            "Numer rejestracyjny", value=wybrana_n.get("nr_rej", ""))
                         e_vin = st.text_input(
                             "Numer VIN", value=wybrana_n.get("vin", "")
                         )
@@ -612,11 +669,9 @@ elif menu == "Pojazdy Inne":
 
                     with st.form("form_edytuj_inny"):
                         e_nazwa = st.text_input(
-                            "Model / Opis", value=wybrany_i.get("nazwa", "")
-                        )
+                            "Model / Opis", value=wybrany_i.get("nazwa", ""))
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrany_i.get("nr_rej", "")
-                        )
+                            "Numer rejestracyjny", value=wybrany_i.get("nr_rej", ""))
                         e_vin = st.text_input(
                             "Numer VIN", value=wybrany_i.get("vin", "")
                         )
@@ -748,9 +803,7 @@ elif menu == "Kierowcy":
                             e_nazwisko = st.text_input(
                                 "Nazwisko", value=wybrany_k.get("nazwisko", "")
                             )
-                            e_imie = st.text_input(
-                                "Imię", value=wybrany_k.get("imie", "")
-                            )
+                            e_imie = st.text_input("Imię", value=wybrany_k.get("imie", ""))
                             e_pesel = st.text_input(
                                 "PESEL", value=wybrany_k.get("pesel", "")
                             )
