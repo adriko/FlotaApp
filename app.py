@@ -70,7 +70,9 @@ def sprawdz_terminy(lista_obiektow, typ_pojazdu):
     za_30_dni = dzisiaj + datetime.timedelta(days=30)
 
     for obj in lista_obiektow:
-        nazwa_ident = obj.get("nr_rej") or obj.get("typ_pojazdu") or f"ID {obj.get('id')}"
+        nazwa_ident = (
+            obj.get("nr_rej") or obj.get("typ_pojazdu") or f"ID {obj.get('id')}"
+        )
 
         # Przegląd techniczny
         p_dt = parsuj_date(obj.get("przeglad_data"))
@@ -463,7 +465,7 @@ elif menu == "Ciągniki Siodłowe":
         with col2:
             if len(ciagniki_list) > 0:
                 options = {
-                    f"{c.get('nr_rej', '')} (VIN: {c.get('vin', '')})": c
+                    f"{c.get('nr_rej', '')} (VIN: {c.get('vin', '-')})": c
                     for c in ciagniki_list
                 }
                 with st.expander("✏️ Edytuj / Usuń ciągnik"):
@@ -474,7 +476,8 @@ elif menu == "Ciągniki Siodłowe":
 
                     with st.form("form_edytuj_ciagnik"):
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrany.get("nr_rej", ""))
+                            "Numer rejestracyjny", value=wybrany.get("nr_rej", "")
+                        )
                         e_vin = st.text_input("Numer VIN", value=wybrany.get("vin", ""))
 
                         p_val = (
@@ -570,7 +573,8 @@ elif menu == "Naczepy":
 
                     with st.form("form_edytuj_naczepe"):
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrana_n.get("nr_rej", ""))
+                            "Numer rejestracyjny", value=wybrana_n.get("nr_rej", "")
+                        )
                         e_vin = st.text_input(
                             "Numer VIN", value=wybrana_n.get("vin", "")
                         )
@@ -637,7 +641,7 @@ elif menu == "Pojazdy Inne":
             st.expander("➕ Dodaj inny pojazd"),
             st.form("form_dodaj_inny", clear_on_submit=True),
         ):
-            nazwa = st.text_input("Model / Opis pojazdu")
+            typ_p = st.text_input("Model / Opis pojazdu")
             nr_rej = st.text_input("Numer rejestracyjny")
             vin = st.text_input("Numer VIN")
             przeglad = st.date_input(
@@ -645,20 +649,20 @@ elif menu == "Pojazdy Inne":
             )
             oc = st.date_input("Termin ubezpieczenia OC", value=dzisiejsza_data())
             if st.form_submit_button("Zapisz pojazd"):
-                if nazwa or nr_rej:
-                    ok, msg = db.dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad, oc)
+                if typ_p or nr_rej:
+                    ok, msg = db.dodaj_inny_pojazd(typ_p, nr_rej, vin, przeglad, oc)
                     if ok:
                         st.success("Dodano pojazd!")
                         st.rerun()
                     else:
                         st.error(f"Błąd zapisu: {msg}")
                 else:
-                    st.error("Nazwa lub numer rejestracyjny są wymagane!")
+                    st.error("Model/opis lub numer rejestracyjny są wymagane!")
 
         with col2:
             if len(inne_list) > 0:
                 options_i = {
-                    f"{i.get('nazwa', 'Pojazd')} - {i.get('nr_rej', '')}": i
+                    f"{i.get('typ_pojazdu', 'Pojazd')} - {i.get('nr_rej', '')}": i
                     for i in inne_list
                 }
                 with st.expander("✏️ Edytuj / Usuń pojazd"):
@@ -668,10 +672,12 @@ elif menu == "Pojazdy Inne":
                     wybrany_i = options_i[wybrany_label_i]
 
                     with st.form("form_edytuj_inny"):
-                        e_nazwa = st.text_input(
-                            "Model / Opis", value=wybrany_i.get("nazwa", ""))
+                        e_typ = st.text_input(
+                            "Model / Opis", value=wybrany_i.get("typ_pojazdu", "")
+                        )
                         e_nr_rej = st.text_input(
-                            "Numer rejestracyjny", value=wybrany_i.get("nr_rej", ""))
+                            "Numer rejestracyjny", value=wybrany_i.get("nr_rej", "")
+                        )
                         e_vin = st.text_input(
                             "Numer VIN", value=wybrany_i.get("vin", "")
                         )
@@ -692,7 +698,7 @@ elif menu == "Pojazdy Inne":
                             if st.form_submit_button("Zapisz zmiany"):
                                 ok, msg = db.edytuj_inny_pojazd(
                                     wybrany_i["id"],
-                                    e_nazwa,
+                                    e_typ,
                                     e_nr_rej,
                                     e_vin,
                                     e_przeglad,
