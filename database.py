@@ -141,13 +141,9 @@ def pobierz_inne_pojazdy():
     try:
         res = supabase.table("inne_pojazdy").select("*").execute()
         return res.data if res.data is not None else []
-    except APIError:
-        try:
-            res = supabase.table("pojazdy_inne").select("*").execute()
-            return res.data if res.data is not None else []
-        except APIError as e:
-            print("Błąd pobierania innych pojazdów:", e)
-            return []
+    except APIError as e:
+        print("Błąd pobierania innych pojazdów:", e)
+        return []
 
 
 def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
@@ -159,10 +155,7 @@ def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
         "oc_data": str(oc_data) if oc_data else None,
     }
     try:
-        try:
-            supabase.table("inne_pojazdy").insert(data).execute()
-        except APIError:
-            supabase.table("pojazdy_inne").insert(data).execute()
+        supabase.table("inne_pojazdy").insert(data).execute()
         return True, "Sukces"
     except APIError as e:
         return False, str(e)
@@ -177,10 +170,7 @@ def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
         "oc_data": str(oc_data) if oc_data else None,
     }
     try:
-        try:
-            supabase.table("inne_pojazdy").update(data).eq("id", id_pojazdu).execute()
-        except APIError:
-            supabase.table("pojazdy_inne").update(data).eq("id", id_pojazdu).execute()
+        supabase.table("inne_pojazdy").update(data).eq("id", id_pojazdu).execute()
         return True, "Sukces"
     except APIError as e:
         return False, str(e)
@@ -188,10 +178,7 @@ def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
 
 def usun_inny_pojazd(id_pojazdu):
     try:
-        try:
-            supabase.table("inne_pojazdy").delete().eq("id", id_pojazdu).execute()
-        except APIError:
-            supabase.table("pojazdy_inne").delete().eq("id", id_pojazdu).execute()
+        supabase.table("inne_pojazdy").delete().eq("id", id_pojazdu).execute()
         return True, "Sukces"
     except APIError as e:
         return False, str(e)
