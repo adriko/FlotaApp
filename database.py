@@ -146,9 +146,9 @@ def pobierz_inne_pojazdy():
         return []
 
 
-def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
+def dodaj_inny_pojazd(typ_pojazdu, nr_rej, vin, przeglad_data, oc_data):
     data = {
-        "nazwa": nazwa,
+        "typ_pojazdu": typ_pojazdu,
         "nr_rej": nr_rej,
         "vin": vin,
         "przeglad_data": str(przeglad_data) if przeglad_data else None,
@@ -161,9 +161,9 @@ def dodaj_inny_pojazd(nazwa, nr_rej, vin, przeglad_data, oc_data):
         return False, str(e)
 
 
-def edytuj_inny_pojazd(id_pojazdu, nazwa, nr_rej, vin, przeglad_data, oc_data):
+def edytuj_inny_pojazd(id_pojazdu, typ_pojazdu, nr_rej, vin, przeglad_data, oc_data):
     data = {
-        "nazwa": nazwa,
+        "typ_pojazdu": typ_pojazdu,
         "nr_rej": nr_rej,
         "vin": vin,
         "przeglad_data": str(przeglad_data) if przeglad_data else None,
