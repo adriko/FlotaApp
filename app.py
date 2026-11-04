@@ -70,7 +70,7 @@ def sprawdz_terminy(lista_obiektow, typ_pojazdu):
     za_30_dni = dzisiaj + datetime.timedelta(days=30)
 
     for obj in lista_obiektow:
-        nazwa_ident = obj.get("nr_rej") or obj.get("nazwa") or f"ID {obj.get('id')}"
+        nazwa_ident = obj.get("nr_rej") or obj.get("typ_pojazdu") or f"ID {obj.get('id')}"
 
         # Przegląd techniczny
         p_dt = parsuj_date(obj.get("przeglad_data"))
